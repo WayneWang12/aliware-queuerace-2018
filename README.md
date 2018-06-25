@@ -49,6 +49,28 @@ abstract Collection<String> get(String queueName, long offset, long num);
 SSD性能大致如下：
 iops 1w 左右；块读写能力(一次读写4K以上) 在200MB/s 左右。
 
+ulimit -a:
+
+```
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 31404
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 6553560
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 10240
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 31404
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+```
+磁盘调度算法是 deadline
+其它系统参数都是默认的。
 
 ## 5. 程序校验逻辑
 
