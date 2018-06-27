@@ -1,7 +1,11 @@
 >写在前面: 
 > 1. 在开始coding前请仔细阅读以下内容
 
-这个是Java Demo, C++ Demo 请查看[链接](https://code.aliyun.com/middlewarerace2018/queue-race-2018-cpp)
+这个是Java Demo, C++ Demo 请查看[链接](https://code.aliyun.com/middlewarerace2018/queue-race-2018-cpp)。
+提交的时候，代码地址只需要写":"后面的内容，也即省去"git@code.aliyun.com"。
+CPP的提交，请在镜像地址里写"CPP"，Java的无需填写。
+用户名和密码可以不用填写。
+
 
 ## 1. 题目背景
 Apache RocketMQ作为的一款分布式的消息中间件，历年双十一承载了万亿级的消息流转，为业务方提供高性能低延迟的稳定可靠的消息服务。随着业务的逐步发展和云上的输出，单机队列数量的逐步增加，给RocketMQ带来了新的挑战。复赛的题目要求设计一个单机百万队列以上的存储引擎，单机内存有限，需要充分利用数据结构与存储技术，最大化吞吐量。  
