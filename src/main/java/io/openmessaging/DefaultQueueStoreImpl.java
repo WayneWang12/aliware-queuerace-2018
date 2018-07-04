@@ -12,14 +12,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultQueueStoreImpl extends QueueStore {
 
-    FileManager fileManager = new FileManager();
+    private ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(() -> new FileManager(Thread.currentThread().getName()));//new FileManager();
+
 
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
+
     Map<String, QueueHolder> queueMap = new ConcurrentHashMap<>();
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueHolder(fileManager));
+            queueMap.put(queueName, new QueueHolder(fileManager.get()));
         }
         queueMap.get(queueName).add(message);
     }

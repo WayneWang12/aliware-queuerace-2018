@@ -8,12 +8,12 @@ import static io.openmessaging.utils.Config.bufferSize;
 
 public class QueueHolder {
 
-    final FileManager fileManager;
-    ReadBuffer readBuffer;
+    private final FileManager fileManager;
+    private ReadBuffer readBuffer;
 
-    final ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSize);
-    AtomicInteger msgOffset = new AtomicInteger();
-    AtomicInteger msgCount = new AtomicInteger();
+    private final ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSize);
+    private AtomicInteger msgOffset = new AtomicInteger();
+    private AtomicInteger msgCount = new AtomicInteger();
 
 
     QueueHolder(FileManager fileManager) {

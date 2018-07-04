@@ -11,7 +11,6 @@ import static io.openmessaging.utils.Config.bufferSize;
 public class ReadBuffer {
     private ByteBuffer buffer; // = ByteBuffer.allocate(bufferSize);
     private FileManager fileManager;
-    private int maxMsgOffset;
     ArrayList<int[]> indexes = new ArrayList<>();
 
     public ReadBuffer(FileManager fileManager) {
@@ -28,7 +27,6 @@ public class ReadBuffer {
 
     public void init() {
         this.buffer = ByteBuffer.allocate(bufferSize);
-        this.maxMsgOffset = indexes.get(indexes.size() - 1)[1];
         updateBufferByOffset(0);
     }
 

@@ -14,18 +14,20 @@ import static io.openmessaging.utils.Config.bufferSize;
 
 public class FileManager {
 
+    private String threadName;
+
     private String filePath(int fileId) {
-        return "/alidata1/race2018/data/file-" + fileId;
+        return "/alidata1/race2018/data/" + threadName + "-file-" + fileId;
     }
 
     private Map<Integer, MappedByteBuffer> fileChannelMap = new ConcurrentHashMap<>();
-
 
     private AtomicInteger currentFileId = new AtomicInteger();
     private final int MAP_SIZE = Integer.MAX_VALUE;
     private MappedByteBuffer currentMappedByteBuffer;
 
-    public FileManager() {
+    public FileManager(String threadName) {
+        this.threadName = threadName;
         updateState();
     }
 
