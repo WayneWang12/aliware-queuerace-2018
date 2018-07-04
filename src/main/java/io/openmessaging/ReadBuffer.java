@@ -9,7 +9,7 @@ import java.util.List;
 import static io.openmessaging.utils.Config.bufferSize;
 
 public class ReadBuffer {
-    private ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
+    private ByteBuffer buffer; // = ByteBuffer.allocate(bufferSize);
     private FileManager fileManager;
     private ArrayList<int[]> indexes = new ArrayList<>();
 
@@ -26,6 +26,7 @@ public class ReadBuffer {
     int checkpoint = 0;
 
     public void init() {
+        this.buffer = ByteBuffer.allocate(bufferSize);
         updateBufferByOffset(0);
     }
 
