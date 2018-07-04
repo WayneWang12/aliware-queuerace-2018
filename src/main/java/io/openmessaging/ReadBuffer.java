@@ -25,8 +25,8 @@ public class ReadBuffer {
     int endMsgOffset = -1;
     int checkpoint = 0;
 
-    public void init() {
-        this.buffer = ByteBuffer.allocate(bufferSize);
+    public void init(ByteBuffer byteBuffer) {
+        this.buffer = byteBuffer;
         updateBufferByOffset(0);
     }
 
@@ -55,7 +55,7 @@ public class ReadBuffer {
             this.endMsgOffset = currentIndex[1];
             this.checkpoint = this.startMsgOffset;
             buffer.clear();
-            fileManager.get(currentIndex[2], currentIndex[3], buffer.array());
+            fileManager.get(currentIndex[2], currentIndex[3], buffer);
         }
     }
 

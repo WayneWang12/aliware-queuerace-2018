@@ -11,7 +11,7 @@ public class QueueHolder {
     private final FileManager fileManager;
     private ReadBuffer readBuffer;
 
-    private final ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSize);
+    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSize);
     private AtomicInteger msgOffset = new AtomicInteger();
     private AtomicInteger msgCount = new AtomicInteger();
 
@@ -25,10 +25,8 @@ public class QueueHolder {
         if (writeBuffer.remaining() < msg.length + 4) {
             flush();
         }
-        synchronized (writeBuffer) {
-            writeBuffer.putInt(msg.length);
-            writeBuffer.put(msg);
-        }
+        writeBuffer.putInt(msg.length);
+        writeBuffer.put(msg);
         msgCount.getAndIncrement();
     }
 
@@ -36,25 +34,22 @@ public class QueueHolder {
 
     List<byte[]> get(long offset, long num) {
         if (firstGet) {
-            flush();
-            readBuffer.init();
             firstGet = false;
+            flush();
+            readBuffer.init(writeBuffer);
         }
         return readBuffer.getMessages(offset, (int) num);
     }
 
     private void flush() {
-        synchronized (fileManager) {
-            writeBuffer.position(writeBuffer.capacity());
-            writeBuffer.flip();
-            int[] result = fileManager.put(writeBuffer);
-            writeBuffer.clear();
-            //todo 记录索引信息
-            int msgEnd = msgOffset.get() + msgCount.get() - 1;
-            readBuffer.addIndex(msgOffset.get(), msgEnd, result[0], result[1]);
-            msgOffset.set(msgEnd + 1);
-            msgCount.set(0);
-        }
+        writeBuffer.position(writeBuffer.capacity());
+        writeBuffer.flip();
+        int[] result = fileManager.put(writeBuffer);
+        writeBuffer.clear();
+        int msgEnd = msgOffset.get() + msgCount.get() - 1;
+        readBuffer.addIndex(msgOffset.get(), msgEnd, result[0], result[1]);
+        msgOffset.set(msgEnd + 1);
+        msgCount.set(0);
     }
 
 }

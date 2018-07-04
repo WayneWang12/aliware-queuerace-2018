@@ -1,6 +1,7 @@
 package io.openmessaging;
 
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -51,10 +52,17 @@ public class FileManager {
             return new int[]{fid, position};
     }
 
-    public void get(int fileId, int startPosition, byte[] dst) {
+    public void get(ByteBuffer src, ByteBuffer dst, int offset, int length) {
+        int end = offset + length;
+        for (int i = offset; i < end; i++)
+            dst.put(src.get());
+    }
+
+    public void get(int fileId, int startPosition, ByteBuffer dst) {
         MappedByteBuffer mmap = fileChannelMap.get(fileId);
         mmap.position(startPosition);
-        mmap.get(dst);
+        get(mmap, dst, 0, bufferSize);
+        dst.flip();
     }
 
     private FileChannel mappedFileChannel(int id) throws IOException {
