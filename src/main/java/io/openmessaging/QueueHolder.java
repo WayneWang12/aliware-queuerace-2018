@@ -22,7 +22,7 @@ public class QueueHolder {
         this.writeBuffer = ByteBuffer.allocateDirect(bufferSize);
     }
 
-    synchronized void add(byte[] msg) {
+    void add(byte[] msg) {
         if (writeBuffer.remaining() < msg.length + 4) {
             flush();
         }
@@ -34,10 +34,12 @@ public class QueueHolder {
     private boolean firstGet = true;
 
     List<byte[]> get(long offset, long num) {
-        if (firstGet) {
-            firstGet = false;
-            flush();
-            readBuffer.init(writeBuffer);
+        synchronized (this) {
+            if (firstGet) {
+                firstGet = false;
+                flush();
+                readBuffer.init(writeBuffer);
+            }
         }
         return readBuffer.getMessages(offset, (int) num);
     }
