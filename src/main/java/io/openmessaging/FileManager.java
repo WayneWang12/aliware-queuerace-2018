@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.openmessaging.utils.Config.bufferSize;
+
 public class FileManager {
 
     private String filePath(int fileId) {
@@ -20,7 +22,7 @@ public class FileManager {
 
 
     private AtomicInteger currentFileId = new AtomicInteger();
-    private final long MAP_SIZE = Integer.MAX_VALUE;
+    private final int MAP_SIZE = Integer.MAX_VALUE;
     private MappedByteBuffer currentMappedByteBuffer;
 
     public FileManager() {
@@ -31,16 +33,20 @@ public class FileManager {
         int id = currentFileId.incrementAndGet();
         this.currentMappedByteBuffer = mappedBufferById(id);
         fileChannelMap.put(id, currentMappedByteBuffer);
+        positionCount.set(0);
     }
 
+    private AtomicInteger positionCount = new AtomicInteger();
     public int[] put(ByteBuffer buffer) {
         synchronized (this) {
-            if (currentMappedByteBuffer.remaining() < buffer.capacity()) {
+            int position = positionCount.getAndIncrement() * bufferSize;
+            if (Integer.MAX_VALUE - position < buffer.capacity()) {
                 updateState();
+                position = positionCount.getAndIncrement() * bufferSize;
             }
-            int position = currentMappedByteBuffer.position();
-            int fid = currentFileId.get();
+            currentMappedByteBuffer.position(position);
             currentMappedByteBuffer.put(buffer);
+            int fid = currentFileId.get();
             return new int[]{fid, position};
         }
     }

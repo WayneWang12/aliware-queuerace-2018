@@ -11,7 +11,8 @@ import static io.openmessaging.utils.Config.bufferSize;
 public class ReadBuffer {
     private ByteBuffer buffer; // = ByteBuffer.allocate(bufferSize);
     private FileManager fileManager;
-    private ArrayList<int[]> indexes = new ArrayList<>();
+    private int maxMsgOffset;
+    ArrayList<int[]> indexes = new ArrayList<>();
 
     public ReadBuffer(FileManager fileManager) {
         this.fileManager = fileManager;
@@ -27,6 +28,7 @@ public class ReadBuffer {
 
     public void init() {
         this.buffer = ByteBuffer.allocate(bufferSize);
+        this.maxMsgOffset = indexes.get(indexes.size() - 1)[1];
         updateBufferByOffset(0);
     }
 
@@ -35,12 +37,14 @@ public class ReadBuffer {
             updateBufferByOffset(msgOffset);
         }
         List<byte[]> result = new ArrayList<>();
-        if (startMsgOffset <= msgOffset && msgOffset + num <= endMsgOffset) {
+        if (startMsgOffset <= msgOffset && msgOffset + num <= endMsgOffset + 1) {
             getMessageFromBuffer(msgOffset, num, result);
         } else if (startMsgOffset <= msgOffset && msgOffset + num > endMsgOffset) {
-            getMessageFromBuffer(msgOffset, endMsgOffset, result);
-            updateBufferByOffset(endMsgOffset + 1);
-            getMessageFromBuffer(endMsgOffset + 1, (int) (msgOffset + num - endMsgOffset), result);
+            getMessageFromBuffer(msgOffset, (int) (endMsgOffset + 1 - msgOffset), result);
+            int nextMsgOffset = endMsgOffset + 1;
+            int remainingNum = (int) (msgOffset + num - endMsgOffset - 1);
+            updateBufferByOffset(nextMsgOffset);
+            getMessageFromBuffer(nextMsgOffset, remainingNum, result);
         }
         return result;
     }
@@ -63,8 +67,8 @@ public class ReadBuffer {
     }
 
     private void getMessageFromBuffer(long msgOffset, int num, List<byte[]> result) {
-        //如果当前消息读取已经越过msgOffset，则重置buffer
-        if (msgOffset < endMsgOffset) {
+        if (msgOffset <= endMsgOffset) {
+            //如果当前消息读取已经越过msgOffset，则重置buffer
             if (checkpoint > msgOffset) {
                 resetBuffer();
             }
@@ -72,7 +76,7 @@ public class ReadBuffer {
                 step();
                 checkpoint++;
             }
-            while (checkpoint < msgOffset + num && checkpoint < endMsgOffset) {
+            while (checkpoint < msgOffset + num && checkpoint <= endMsgOffset) {
                 result.add(getMessage());
                 checkpoint++;
             }

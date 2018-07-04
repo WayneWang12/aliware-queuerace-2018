@@ -2,6 +2,7 @@ package io.openmessaging;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +21,7 @@ public class DemoTester {
     public static void main(String args[]) throws Exception {
         //评测相关配置
         //发送阶段的发送数量，也即发送阶段必须要在规定时间内把这些消息发送完毕方可
-        int msgNum = 40000000;
+        int msgNum = 200000000;
         //发送阶段的最大持续时间，也即在该时间内，如果消息依然没有发送完毕，则退出评测
         int sendTime = 2000 * 1000;
         //消费阶段的最大持续时间，也即在该时间内，如果消息依然没有消费完毕，则退出评测
@@ -159,6 +160,8 @@ public class DemoTester {
         }
     }
 
+    static final String lock = "lock";
+
     static class IndexChecker implements Runnable {
 
         private AtomicLong counter;
@@ -191,16 +194,24 @@ public class DemoTester {
                         String msgToCheck = new String(msg, msgPrefixLength, msg.length - msgPrefixLength);
                         String expectedMsg = String.valueOf(index++);
                         if (!msgToCheck.equals(expectedMsg)) {
-                            System.out.println("offset begin:" + saved);
-                            System.out.print("[");
-                            for (byte[] m : msgs) {
-                                System.out.print(new String(m) + ",");
+                            synchronized (lock) {
+                                System.out.println(queueName + " offset begin:" + saved);
+                                ArrayList<int[]> some = ((DefaultQueueStoreImpl) this.queueStore).queueMap.get(queueName).readBuffer.indexes;
+                                for(int[] m:some) {
+                                    System.out.println(m[0] + ", " + m[1] + ", " + m[2] + ", " + m[3] );
+
+                                }
+                                System.out.println(queueName + " offset begin:" + saved);
+                                System.out.print("[");
+                                for (byte[] m : msgs) {
+                                    System.out.print(new String(m) + ",");
+                                }
+                                System.out.println("]");
+                                System.out.println(new String(msg));
+                                System.out.println(index - 1);
+                                System.out.println("Check error");
+                                System.out.println("-------------------");
                             }
-                            System.out.println("]");
-                            System.out.println(new String(msg));
-                            System.out.println(index - 1);
-                            System.out.println("Check error");
-                            System.out.println("-------------------");
                             System.exit(-1);
                         }
                     }
@@ -248,11 +259,10 @@ public class DemoTester {
                                 String msgToConsume = new String(msg, msgPrefixLength, msg.length - msgPrefixLength);
                                 String expectedMsg = String.valueOf(index++);
                                 if (!msgToConsume.equals(expectedMsg)) {
-                                    System.out.println("Check error");
+                                    System.out.println("Check error, expected " + expectedMsg + ", actual " + msgToConsume);
                                     System.exit(-1);
                                 } else {
                                     long c = consumerCount.getAndIncrement();
-                                    System.out.println("passed " + msgToConsume + " " + expectedMsg);
                                     if (c % 1000000 == 0) {
                                         System.out.println(c + " messages consumed. time " + LocalDate.now());
                                     }
