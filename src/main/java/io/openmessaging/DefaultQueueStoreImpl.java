@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -19,9 +21,11 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     Map<String, QueueHolder> queueMap = new ConcurrentHashMap<>();
 
+    AtomicInteger queueId = new AtomicInteger();
+
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueHolder(fileManager.get()));
+            queueMap.put(queueName, new QueueHolder(queueId.getAndIncrement(), fileManager.get()));
         }
         queueMap.get(queueName).add(message);
     }

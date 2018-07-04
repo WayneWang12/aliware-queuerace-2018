@@ -10,15 +10,22 @@ public class QueueHolder {
 
     private final FileManager fileManager;
     private ReadBuffer readBuffer;
+    private int queueId;
 
-    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(bufferSize);
+    private ByteBuffer writeBuffer; // = ByteBuffer.allocateDirect(bufferSize);
     private AtomicInteger msgOffset = new AtomicInteger();
     private AtomicInteger msgCount = new AtomicInteger();
 
 
-    QueueHolder(FileManager fileManager) {
+    QueueHolder(int queueId, FileManager fileManager) {
+        this.queueId = queueId;
         this.fileManager = fileManager;
         this.readBuffer = new ReadBuffer(fileManager);
+        if(this.queueId % 2 == 0) {
+            this.writeBuffer = ByteBuffer.allocateDirect(bufferSize);
+        } else {
+            this.writeBuffer = ByteBuffer.allocate(bufferSize);
+        }
     }
 
     synchronized void add(byte[] msg) {

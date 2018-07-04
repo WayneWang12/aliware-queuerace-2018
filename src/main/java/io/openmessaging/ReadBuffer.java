@@ -6,10 +6,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.openmessaging.utils.Config.bufferSize;
-
 public class ReadBuffer {
-    private ByteBuffer buffer; // = ByteBuffer.allocate(bufferSize);
+    private ByteBuffer buffer;
     private FileManager fileManager;
     ArrayList<int[]> indexes = new ArrayList<>();
 
