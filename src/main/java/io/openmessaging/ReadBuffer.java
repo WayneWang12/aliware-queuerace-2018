@@ -28,7 +28,7 @@ public class ReadBuffer {
         updateBufferByOffset(0);
     }
 
-    public List<byte[]> getMessages(long msgOffset, int num) {
+    public synchronized List<byte[]> getMessages(long msgOffset, int num) {
         if (msgOffset > endMsgOffset || msgOffset < startMsgOffset) { //如果msgOffset大于当前，则需要更新index
             updateBufferByOffset(msgOffset);
         }
