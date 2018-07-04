@@ -1,6 +1,5 @@
 package io.openmessaging;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -264,7 +263,7 @@ public class DemoTester {
                                 } else {
                                     long c = consumerCount.getAndIncrement();
                                     if (c % 1000000 == 0) {
-                                        System.out.println(c + " messages consumed. time " + LocalDate.now());
+                                        System.out.println(c + " messages consumed. time " + LocalDateTime.now());
                                     }
                                 }
                             }
