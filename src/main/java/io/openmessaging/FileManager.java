@@ -40,7 +40,6 @@ public class FileManager {
 
     private AtomicInteger positionCount = new AtomicInteger();
     public int[] put(ByteBuffer buffer) {
-        synchronized (this) {
             int position = positionCount.getAndIncrement() * bufferSize;
             if (Integer.MAX_VALUE - position < buffer.capacity()) {
                 updateState();
@@ -50,7 +49,6 @@ public class FileManager {
             currentMappedByteBuffer.put(buffer);
             int fid = currentFileId.get();
             return new int[]{fid, position};
-        }
     }
 
     public void get(int fileId, int startPosition, byte[] dst) {
