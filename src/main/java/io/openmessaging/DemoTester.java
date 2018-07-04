@@ -1,7 +1,6 @@
 package io.openmessaging;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,7 +27,7 @@ public class DemoTester {
         //队列的数量
         int queueNum = 1000000;
         //正确性检测的次数
-        int checkNum = 1000000;
+        int checkNum = 100000;
         //消费阶段的总队列数量
         int checkQueueNum = 100000;
         //发送的线程数量
@@ -209,11 +208,12 @@ public class DemoTester {
                             }
                             System.exit(-1);
                         } else {
-                            long c = checkCounter.getAndIncrement();
-                            if (c % 10000 == 0) {
-                                System.out.println(c + " messages checked. time " + LocalDateTime.now());
-                            }
+
                         }
+                    }
+                    long c = checkCounter.getAndIncrement();
+                    if (c % 10000 == 0) {
+                        System.out.println(c + " messages checked. time " + LocalDateTime.now());
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
