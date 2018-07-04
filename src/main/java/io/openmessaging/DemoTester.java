@@ -28,7 +28,7 @@ public class DemoTester {
         //队列的数量
         int queueNum = 1000000;
         //正确性检测的次数
-        int checkNum = 10000000;
+        int checkNum = 1000000;
         //消费阶段的总队列数量
         int checkQueueNum = 100000;
         //发送的线程数量
@@ -160,6 +160,7 @@ public class DemoTester {
     }
 
     static final String lock = "lock";
+    static final AtomicLong checkCounter = new AtomicLong();
 
     static class IndexChecker implements Runnable {
 
@@ -207,6 +208,11 @@ public class DemoTester {
                                 System.out.println("-------------------");
                             }
                             System.exit(-1);
+                        } else {
+                            long c = checkCounter.getAndIncrement();
+                            if (c % 10000000 == 0) {
+                                System.out.println(c + " messages checked. time " + LocalDateTime.now());
+                            }
                         }
                     }
                 } catch (Throwable t) {
