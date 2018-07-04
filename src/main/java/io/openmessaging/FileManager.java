@@ -39,16 +39,17 @@ public class FileManager {
     }
 
     private AtomicInteger positionCount = new AtomicInteger();
-    public int[] put(ByteBuffer buffer) {
-            int position = positionCount.getAndIncrement() * bufferSize;
-            if (Integer.MAX_VALUE - position < buffer.capacity()) {
-                updateState();
-                position = positionCount.getAndIncrement() * bufferSize;
-            }
-            currentMappedByteBuffer.position(position);
-            currentMappedByteBuffer.put(buffer);
-            int fid = currentFileId.get();
-            return new int[]{fid, position};
+
+    public synchronized int[] put(ByteBuffer buffer) {
+        int position = positionCount.getAndIncrement() * bufferSize;
+        if (Integer.MAX_VALUE - position < buffer.capacity()) {
+            updateState();
+            position = positionCount.getAndIncrement() * bufferSize;
+        }
+        currentMappedByteBuffer.position(position);
+        currentMappedByteBuffer.put(buffer);
+        int fid = currentFileId.get();
+        return new int[]{fid, position};
     }
 
     public void get(ByteBuffer src, ByteBuffer dst, int offset, int length) {
@@ -59,9 +60,11 @@ public class FileManager {
 
     public void get(int fileId, int startPosition, ByteBuffer dst) {
         MappedByteBuffer mmap = fileChannelMap.get(fileId);
-        mmap.position(startPosition);
-        get(mmap, dst, 0, bufferSize);
-        dst.flip();
+        synchronized (mmap) {
+            mmap.position(startPosition);
+            get(mmap, dst, 0, bufferSize);
+            dst.flip();
+        }
     }
 
     private FileChannel mappedFileChannel(int id) throws IOException {
