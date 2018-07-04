@@ -210,7 +210,7 @@ public class DemoTester {
                             System.exit(-1);
                         } else {
                             long c = checkCounter.getAndIncrement();
-                            if (c % 10000000 == 0) {
+                            if (c % 10000 == 0) {
                                 System.out.println(c + " messages checked. time " + LocalDateTime.now());
                             }
                         }
@@ -263,7 +263,7 @@ public class DemoTester {
                                     System.exit(-1);
                                 } else {
                                     long c = consumerCount.getAndIncrement();
-                                    if (c % 1000000 == 0) {
+                                    if (c % 10000000 == 0) {
                                         System.out.println(c + " messages consumed. time " + LocalDateTime.now());
                                     }
                                 }
