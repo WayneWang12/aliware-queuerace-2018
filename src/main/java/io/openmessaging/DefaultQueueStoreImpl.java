@@ -25,7 +25,7 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueHolder(queueId.getAndIncrement(), fileManager.get()));
+            queueMap.put(queueName, new QueueHolder(fileManager.get()));
         }
         queueMap.get(queueName).add(message);
     }
