@@ -1,5 +1,6 @@
 package io.openmessaging;
 
+import java.lang.management.ManagementFactory;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Random;
@@ -15,6 +16,7 @@ public class DemoTester {
 
     private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqo";
     private final static int msgPrefixLength = msgPrefix.length();
+    private static long startTimestamp;
 
     public static void main(String args[]) throws Exception {
         //评测相关配置
@@ -52,6 +54,7 @@ public class DemoTester {
 
         //Step1: 发送消息
         long sendStart = System.currentTimeMillis();
+        startTimestamp = sendStart;
         System.out.println("game started at " + LocalDateTime.now());
         long maxTimeStamp = System.currentTimeMillis() + sendTime;
         AtomicLong sendCounter = new AtomicLong(0);
@@ -146,7 +149,8 @@ public class DemoTester {
                         queueStore.put(queueName, msgToPut.getBytes());
                         long c = producerCount.getAndIncrement();
                         if (c % 10000000 == 0) {
-                            System.out.println(c + " messages produced. time " + LocalDateTime.now());
+                            int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
+                            System.out.println(c + " messages produced. time " + (System.currentTimeMillis() - startTimestamp) + "ms, threads " + threadCount);
                         }
 
                     }
@@ -207,8 +211,6 @@ public class DemoTester {
                                 System.out.println("-------------------");
                             }
                             System.exit(-1);
-                        } else {
-
                         }
                     }
                     long c = checkCounter.getAndIncrement();
