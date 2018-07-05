@@ -23,7 +23,7 @@ public class FileManager {
     private Map<Integer, MappedByteBuffer> fileChannelMap = new ConcurrentHashMap<>();
 
     private AtomicInteger currentFileId = new AtomicInteger();
-    private final int MAP_SIZE = Integer.MAX_VALUE;
+    private final int MAP_SIZE = 128 * 1024 * 1024;
     private MappedByteBuffer currentMappedByteBuffer;
 
     public FileManager(String threadName) {
@@ -42,7 +42,7 @@ public class FileManager {
 
     public synchronized int[] put(ByteBuffer buffer) {
         int position = positionCount.getAndIncrement() * bufferSize;
-        if (Integer.MAX_VALUE - position < buffer.capacity()) {
+        if (MAP_SIZE - position < buffer.capacity()) {
             updateState();
             position = positionCount.getAndIncrement() * bufferSize;
         }
