@@ -14,7 +14,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultQueueStoreImpl extends QueueStore {
 
-    private ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(() -> new FileManager(Thread.currentThread().getName()));//new FileManager();
+    private FileManager fileManager =  new FileManager(Thread.currentThread().getName());
+//    private ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(() ->  new FileManager(Thread.currentThread().getName()));
+
 
 
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
@@ -25,7 +27,8 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueHolder(fileManager.get()));
+            //            queueMap.put(queueName, new QueueHolder(fileManager.get()));
+            queueMap.put(queueName, new QueueHolder(fileManager));
         }
         queueMap.get(queueName).add(message);
     }

@@ -72,7 +72,8 @@ public class FileManager {
                 Paths.get(filePath(id)),
                 StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE,
-                StandardOpenOption.READ
+                StandardOpenOption.READ,
+                StandardOpenOption.DELETE_ON_CLOSE
         );
     }
 
