@@ -23,7 +23,7 @@ public class FileManager {
     private Map<Integer, MappedByteBuffer> fileChannelMap = new ConcurrentHashMap<>();
 
     private AtomicInteger currentFileId = new AtomicInteger();
-    private final int MAP_SIZE = 128 * 1024 * 1024;
+    private final int MAP_SIZE = 1024 * 1024 * 1024;
     private MappedByteBuffer currentMappedByteBuffer;
 
     public FileManager(String threadName) {
@@ -46,6 +46,7 @@ public class FileManager {
             updateState();
             position = positionCount.getAndIncrement() * bufferSize;
         }
+
         currentMappedByteBuffer.position(position);
         currentMappedByteBuffer.put(buffer);
         int fid = currentFileId.get();
