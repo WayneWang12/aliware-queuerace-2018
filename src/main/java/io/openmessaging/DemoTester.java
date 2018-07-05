@@ -16,7 +16,9 @@ public class DemoTester {
 
     private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqo";
     private final static int msgPrefixLength = msgPrefix.length();
-    private static long startTimestamp;
+    private static long sendStartTimestamp;
+    private static long checkStartTimestamp;
+    private static long consumeStartTimestamp;
 
     public static void main(String args[]) throws Exception {
         //评测相关配置
@@ -54,7 +56,7 @@ public class DemoTester {
 
         //Step1: 发送消息
         long sendStart = System.currentTimeMillis();
-        startTimestamp = sendStart;
+        sendStartTimestamp = sendStart;
         System.out.println("game started at " + LocalDateTime.now());
         long maxTimeStamp = System.currentTimeMillis() + sendTime;
         AtomicLong sendCounter = new AtomicLong(0);
@@ -74,6 +76,7 @@ public class DemoTester {
 
         //Step2: 索引的正确性校验
         long indexCheckStart = System.currentTimeMillis();
+        checkStartTimestamp = indexCheckStart;
         AtomicLong indexCheckCounter = new AtomicLong(0);
         Thread[] indexChecks = new Thread[checkTsNum];
         for (int i = 0; i < sendTsNum; i++) {
@@ -90,6 +93,7 @@ public class DemoTester {
 
         //Step3: 消费消息，并验证顺序性
         long checkStart = System.currentTimeMillis();
+        consumeStartTimestamp = checkStart;
         Random random = new Random();
         AtomicLong checkCounter = new AtomicLong(0);
         Thread[] checks = new Thread[checkTsNum];
@@ -150,7 +154,7 @@ public class DemoTester {
                         long c = producerCount.getAndIncrement();
                         if (c % 10000000 == 0) {
                             int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-                            System.out.println(c + " messages produced. time " + (System.currentTimeMillis() - startTimestamp) + "ms, threads " + threadCount);
+                            System.out.println(c + " messages produced. time " + (System.currentTimeMillis() - sendStartTimestamp) + "ms, threads " + threadCount);
                         }
 
                     }
@@ -215,7 +219,7 @@ public class DemoTester {
                     }
                     long c = checkCounter.getAndIncrement();
                     if (c % 10000 == 0) {
-                        System.out.println(c + " messages checked. time " + LocalDateTime.now());
+                        System.out.println(c + " messages checked. time " + (System.currentTimeMillis() - checkStartTimestamp) + "ms");
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -266,7 +270,7 @@ public class DemoTester {
                                 } else {
                                     long c = consumerCount.getAndIncrement();
                                     if (c % 10000000 == 0) {
-                                        System.out.println(c + " messages consumed. time " + LocalDateTime.now());
+                                        System.out.println(c + " messages consumed. time " + (System.currentTimeMillis() - consumeStartTimestamp) + "ms");
                                     }
                                 }
                             }
