@@ -4,45 +4,64 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static java.nio.file.StandardOpenOption.*;
 
 public class FileManager {
 
-    private final int bufferSize = 128;
+    static class Task {
+        private int queueId;
+        private ByteBuffer msg;
+
+        public Task(int queueId, ByteBuffer msg) {
+            this.queueId = queueId;
+            this.msg = msg;
+        }
+
+        public int getQueueId() {
+            return queueId;
+        }
+
+        public ByteBuffer getMsg() {
+            return msg;
+        }
+    }
 
     private FileChannel fileChannel;
-    private ByteBuffer[] writeBuffer = new ByteBuffer[bufferSize];
+    private BlockingQueue<Task> bufferQueue = new LinkedBlockingQueue<>(200000);
+    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(64 * 1024);
+
 
     FileManager() {
-        for(int n = 0; n < bufferSize; n ++) {
-            writeBuffer[n] = ByteBuffer.allocateDirect(1024);
-        }
         try {
             this.fileChannel =
                     FileChannel.open(Paths.get("/alidata1/race2018/data/" + Thread.currentThread().getName()), CREATE, READ, WRITE, DELETE_ON_CLOSE);
         } catch (IOException e) {
             e.printStackTrace();
         }
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Task task = bufferQueue.take();
+                    if(writeBuffer.remaining() < task.getMsg().capacity()) {
+                        writeBuffer.position(writeBuffer.capacity());
+                        writeBuffer.flip();
+                        fileChannel.write(writeBuffer);
+                        writeBuffer.clear();
+                    }
+                    writeBuffer.put(task.getMsg());
+                    QueueManager.pool.release(task.getMsg());
+                } catch (InterruptedException | IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
-    int currentPosition = 0;
-
-    ByteBuffer putMessage(ByteBuffer msg) {
-        if(currentPosition >= bufferSize) {
-            try {
-                fileChannel.write(writeBuffer);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            currentPosition = 0;
-        }
-        ByteBuffer replace = writeBuffer[currentPosition];
-        msg.position(msg.capacity());
-        msg.flip();
-        writeBuffer[currentPosition++] = msg;
-        replace.clear();
-        return replace;
+    void putMessage(int queueId, ByteBuffer msg) {
+        bufferQueue.offer(new Task(queueId, msg));
     }
 
 }
