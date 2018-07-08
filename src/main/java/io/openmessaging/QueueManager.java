@@ -10,11 +10,10 @@ public class QueueManager {
 
     final int queueId;
 
-    FileManager fileManager;
+    static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
 
-    public QueueManager(int queueId, FileManager fileManager) {
+    public QueueManager(int queueId) {
         this.queueId = queueId;
-        this.fileManager = fileManager;
     }
 
 
@@ -22,7 +21,7 @@ public class QueueManager {
         if(queueBuffer.remaining() < msg.length + 4) {
             queueBuffer.position(queueBuffer.capacity());
             queueBuffer.flip();
-            fileManager.putMessage(queueId, queueBuffer);
+            fileManager.get().putMessage(queueId, queueBuffer);
             queueBuffer = pool.acquire();
         }
         queueBuffer.putInt(msg.length);

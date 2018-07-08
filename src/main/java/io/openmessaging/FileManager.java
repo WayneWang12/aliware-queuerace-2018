@@ -30,9 +30,8 @@ public class FileManager {
     }
 
     private FileChannel fileChannel;
-    private BlockingQueue<Task> bufferQueue = new LinkedBlockingQueue<>(200000);
+    private BlockingQueue<Task> bufferQueue = new LinkedBlockingQueue<>();
     private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(64 * 1024);
-
 
     FileManager() {
         try {
@@ -61,7 +60,11 @@ public class FileManager {
     }
 
     void putMessage(int queueId, ByteBuffer msg) {
-        bufferQueue.offer(new Task(queueId, msg));
+        try {
+            bufferQueue.put(new Task(queueId, msg));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 import static io.openmessaging.Config.*;
 
 public class DirectByteBufferPool {
-    private int maxPoolEntries = 1200000;
+    private int maxPoolEntries = 2000000;
     private int buffersInPool = 0;
     private final ByteBuffer[] pool = new ByteBuffer[maxPoolEntries];
 

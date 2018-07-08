@@ -16,13 +16,12 @@ public class DefaultQueueStoreImpl extends QueueStore {
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
 
     Map<String, QueueManager> queueMap = new ConcurrentHashMap<>();
-    FileManager fileManager = new FileManager();
 
     AtomicInteger queueId = new AtomicInteger();
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueManager(queueId.getAndIncrement(), fileManager));
+            queueMap.put(queueName, new QueueManager(queueId.getAndIncrement()));
         }
         queueMap.get(queueName).add(message);
     }
