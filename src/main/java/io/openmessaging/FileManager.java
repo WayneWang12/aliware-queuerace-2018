@@ -9,10 +9,15 @@ import static java.nio.file.StandardOpenOption.*;
 
 public class FileManager {
 
+    private final int bufferSize = 128;
+
     private FileChannel fileChannel;
-    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(64 * 1024);
+    private ByteBuffer[] writeBuffer = new ByteBuffer[bufferSize];
 
     FileManager() {
+        for(int n = 0; n < bufferSize; n ++) {
+            writeBuffer[n] = ByteBuffer.allocateDirect(1024);
+        }
         try {
             this.fileChannel =
                     FileChannel.open(Paths.get("/alidata1/race2018/data/" + Thread.currentThread().getName()), CREATE, READ, WRITE, DELETE_ON_CLOSE);
@@ -21,30 +26,23 @@ public class FileManager {
         }
     }
 
-    void writeQueueBuffer(ByteBuffer byteBuffer) {
-        if (writeBuffer.remaining() < byteBuffer.capacity()) {
-            writeBuffer.position(writeBuffer.capacity());
-            writeBuffer.flip();
+    int currentPosition = 0;
+
+    ByteBuffer putMessage(ByteBuffer msg) {
+        if(currentPosition >= bufferSize) {
             try {
                 fileChannel.write(writeBuffer);
-                writeBuffer.clear();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            currentPosition = 0;
         }
-        writeBuffer.put(byteBuffer);
-    }
-
-    void flushLast(ByteBuffer byteBuffer) {
-        writeQueueBuffer(byteBuffer);
-        writeBuffer.position(writeBuffer.capacity());
-        writeBuffer.flip();
-        try {
-            fileChannel.write(writeBuffer);
-            writeBuffer.clear();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        ByteBuffer replace = writeBuffer[currentPosition];
+        msg.position(msg.capacity());
+        msg.flip();
+        writeBuffer[currentPosition++] = msg;
+        replace.clear();
+        return replace;
     }
 
 }

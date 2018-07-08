@@ -6,15 +6,13 @@ public class QueueManager {
 
     private ByteBuffer queueBuffer = ByteBuffer.allocateDirect(1024);
 
-    static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
+    static ThreadLocal<FileManager> fileManagerThreadLocal = ThreadLocal.withInitial(FileManager::new);
     static ThreadLocal<ReadManager> readManager = ThreadLocal.withInitial(ReadManager::new);
+
 
     void add(byte[] msg) {
         if(queueBuffer.remaining() < msg.length + 4) {
-            queueBuffer.position(queueBuffer.capacity());
-            queueBuffer.flip();
-            fileManager.get().writeQueueBuffer(queueBuffer);
-            queueBuffer.clear();
+            queueBuffer = fileManagerThreadLocal.get().putMessage(queueBuffer);
         }
         queueBuffer.putInt(msg.length);
         queueBuffer.put(msg);
