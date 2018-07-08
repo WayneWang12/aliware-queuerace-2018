@@ -4,22 +4,18 @@ import java.nio.ByteBuffer;
 
 public class QueueManager {
 
-    private ByteBuffer queueBuffer = ByteBuffer.allocateDirect(1500);
-    private int msgCounter;
+    private ByteBuffer queueBuffer = ByteBuffer.allocateDirect(1024);
 
     static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
 
-    static final int msgBatch = 20;
-
     void add(byte[] msg) {
-        queueBuffer.putInt(msg.length);
-        queueBuffer.put(msg);
-        msgCounter++;
-        if(msgCounter % msgBatch == 0) {
+        if(queueBuffer.remaining() < msg.length + 4) {
             queueBuffer.position(queueBuffer.capacity());
             queueBuffer.flip();
             fileManager.get().writeQueueBuffer(queueBuffer);
             queueBuffer.clear();
         }
+        queueBuffer.putInt(msg.length);
+        queueBuffer.put(msg);
     }
 }
