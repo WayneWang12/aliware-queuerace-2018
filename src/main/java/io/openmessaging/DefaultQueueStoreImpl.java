@@ -2,11 +2,10 @@ package io.openmessaging;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -14,21 +13,15 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultQueueStoreImpl extends QueueStore {
 
-    private FileManager fileManager =  new FileManager(Thread.currentThread().getName());
-//    private ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(() ->  new FileManager(Thread.currentThread().getName()));
-
-
-
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
 
-    Map<String, QueueHolder> queueMap = new ConcurrentHashMap<>();
+    Map<String, QueueManager> queueMap = new ConcurrentHashMap<>();
 
-    AtomicInteger queueId = new AtomicInteger();
+//    AtomicInteger queueId = new AtomicInteger();
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            //            queueMap.put(queueName, new QueueHolder(fileManager.get()));
-            queueMap.put(queueName, new QueueHolder(fileManager));
+            queueMap.put(queueName, new QueueManager());
         }
         queueMap.get(queueName).add(message);
     }
@@ -36,7 +29,7 @@ public class DefaultQueueStoreImpl extends QueueStore {
         if (!queueMap.containsKey(queueName)) {
             return EMPTY;
         }
-        QueueHolder queue = queueMap.get(queueName);
-        return queue.get(offset, num);
+        QueueManager queue = queueMap.get(queueName);
+        throw new NoSuchElementException("not implemented");
     }
 }
