@@ -3,13 +3,15 @@ package io.openmessaging;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class QueueManager {
+public class RDPQueue {
 
 
     final int queueId;
     ByteBuffer byteBuffer;
     Block lastBlock;
+    ArrayList<int[]> indexes = new ArrayList<>();
 
     static FileManager fileManager = new FileManager();
     static {
@@ -18,10 +20,12 @@ public class QueueManager {
 
     static ThreadLocal<Block> blockThreadLocal = ThreadLocal.withInitial(fileManager::acquire);
 
-    public QueueManager(int queueId) {
+    public RDPQueue(int queueId) {
         this.queueId = queueId;
         updateToNewByteBuffer();
     }
+
+    AtomicInteger msgCount = new AtomicInteger();
 
     void updateToNewByteBuffer() {
         this.lastBlock = blockThreadLocal.get();
@@ -32,6 +36,8 @@ public class QueueManager {
             this.byteBuffer = newBlock.acquire();
             blockThreadLocal.set(newBlock);
         }
+        int[] index = new int[]{lastBlock.blockId, lastBlock.currentPosition - 1, msgCount.get()};
+        indexes.add(index);
     }
 
     void add(byte[] msg) {
@@ -42,6 +48,7 @@ public class QueueManager {
         }
         byteBuffer.putInt(msg.length);
         byteBuffer.put(msg);
+        msgCount.getAndIncrement();
     }
 
     ArrayList<byte[]> getMessages(long offset, long num) {

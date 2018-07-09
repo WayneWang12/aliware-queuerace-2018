@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileManager implements Runnable {
 
@@ -28,12 +28,12 @@ public class FileManager implements Runnable {
         }
     }
 
-    AtomicLong currentBlockId = new AtomicLong();
+    AtomicInteger currentBlockId = new AtomicInteger();
 
     Block acquire() {
         Block block;
         while ((block = blocksPool.poll()) == null);
-        block.positionInFile = currentBlockId.getAndIncrement() * Constants.blockSize;
+        block.blockId = currentBlockId.getAndIncrement();
         return block;
     }
 
@@ -49,7 +49,7 @@ public class FileManager implements Runnable {
                 if(block.isFull()) {
                     block.blockBuffer.clear();
                     try {
-                        fileChannel.write(block.blockBuffer, block.positionInFile);
+                        fileChannel.write(block.blockBuffer, (long)block.blockId * Constants.blockSize);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

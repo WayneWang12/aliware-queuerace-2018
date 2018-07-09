@@ -3,7 +3,6 @@ package io.openmessaging;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -15,13 +14,13 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
 
-    static  Map<String, QueueManager> queueMap = new ConcurrentHashMap<>();
+    static  Map<String, RDPQueue> queueMap = new ConcurrentHashMap<>();
 
     AtomicInteger queueId = new AtomicInteger();
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new QueueManager(queueId.getAndIncrement()));
+            queueMap.put(queueName, new RDPQueue(queueId.getAndIncrement()));
         }
         queueMap.get(queueName).add(message);
     }

@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class Block {
     ByteBuffer blockBuffer;
     ByteBuffer[] bufferPoolFromBlock;
-    long positionInFile = -1;
+    int blockId = -1;
 
     static final int bufferNumber = Constants.blockSize / Constants.bufferSize;
 
@@ -43,7 +43,7 @@ public class Block {
     public void resetState() {
         fullBufferNumber.set(0);
         currentPosition = 0;
-        positionInFile = -1;
+        blockId = -1;
         for(int i = 0; i<bufferNumber; i++) {
             bufferPoolFromBlock[i].clear();
         }
