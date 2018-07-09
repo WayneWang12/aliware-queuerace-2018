@@ -1,13 +1,12 @@
 package io.openmessaging;
 
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscLinkedQueue7;
+
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Paths;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-
-import static java.nio.file.StandardOpenOption.*;
 
 public class FileManager {
 
@@ -30,41 +29,45 @@ public class FileManager {
     }
 
     private FileChannel fileChannel;
-    private BlockingQueue<Task> bufferQueue = new LinkedBlockingQueue<>();
+    private MessagePassingQueue<Task> bufferQueue = new MpscLinkedQueue7<>();
     private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(64 * 1024);
 
     FileManager() {
         try {
             this.fileChannel =
-                    FileChannel.open(Paths.get("/alidata1/race2018/data/" + Thread.currentThread().getName()), CREATE, READ, WRITE, DELETE_ON_CLOSE);
+                    new RandomAccessFile("/alidata1/race2018/data/" + Thread.currentThread().getName(), "rw").getChannel();
         } catch (IOException e) {
             e.printStackTrace();
         }
         new Thread(() -> {
             while (true) {
-                try {
-                    Task task = bufferQueue.take();
-                    if(writeBuffer.remaining() < task.getMsg().capacity()) {
+                Task task = bufferQueue.poll();
+                if (task == null) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    if (writeBuffer.remaining() < task.getMsg().capacity()) {
                         writeBuffer.position(writeBuffer.capacity());
                         writeBuffer.flip();
-                        fileChannel.write(writeBuffer);
+                        try {
+                            fileChannel.write(writeBuffer);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                         writeBuffer.clear();
                     }
                     writeBuffer.put(task.getMsg());
                     QueueManager.pool.release(task.getMsg());
-                } catch (InterruptedException | IOException e) {
-                    e.printStackTrace();
                 }
             }
         }).start();
     }
 
     void putMessage(int queueId, ByteBuffer msg) {
-        try {
-            bufferQueue.put(new Task(queueId, msg));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        bufferQueue.offer(new Task(queueId, msg));
     }
 
 }

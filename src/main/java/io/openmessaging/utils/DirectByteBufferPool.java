@@ -1,4 +1,4 @@
-package io.openmessaging;
+package io.openmessaging.utils;
 
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -6,9 +6,14 @@ import java.nio.ByteBuffer;
 import static io.openmessaging.Config.*;
 
 public class DirectByteBufferPool {
-    private int maxPoolEntries = 2000000;
+    private int maxPoolEntries;
     private int buffersInPool = 0;
-    private final ByteBuffer[] pool = new ByteBuffer[maxPoolEntries];
+    private final ByteBuffer[] pool;
+
+    public DirectByteBufferPool(int maxPoolEntries) {
+        this.maxPoolEntries = maxPoolEntries;
+        this.pool = new ByteBuffer[maxPoolEntries];
+    }
 
     public ByteBuffer acquire() {
         return takeBufferFromPool();
