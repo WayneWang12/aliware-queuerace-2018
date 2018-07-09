@@ -5,6 +5,9 @@ import java.util.List;
 
 public interface Constants {
     int msgBatch = 10;
-    public static final int bufferSize = 1024;
-    public static final List<byte[]> EMPTY = new ArrayList<>();
+    int bufferSize = 1024;
+    int blockSize = 64 * 1024;
+    int blockNumber = Integer.MAX_VALUE / blockSize;
+    String filePath = "/alidata1/race2018/data/rdp";
+    List<byte[]> EMPTY = new ArrayList<>();
 }

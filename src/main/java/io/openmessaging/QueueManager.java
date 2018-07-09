@@ -2,45 +2,51 @@ package io.openmessaging;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.NoSuchElementException;
 
 public class QueueManager {
 
-    private ByteBuffer queueBuffer = ByteBuffer.allocateDirect(1024);
 
     final int queueId;
+    ByteBuffer byteBuffer;
+    Block lastBlock;
 
-    static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
-    static FileManager lastFileManager = fileManager.get();
+    static FileManager fileManager = new FileManager();
+    static {
+        fileManager.start();
+    }
+
+    static ThreadLocal<Block> blockThreadLocal = ThreadLocal.withInitial(fileManager::acquire);
 
     public QueueManager(int queueId) {
         this.queueId = queueId;
+        updateToNewByteBuffer();
     }
 
-    AtomicInteger msgCounter = new AtomicInteger();
+    void updateToNewByteBuffer() {
+        this.lastBlock = blockThreadLocal.get();
+        this.byteBuffer = lastBlock.acquire();
+        while (byteBuffer == null) {
+            Block newBlock = fileManager.acquire();
+            this.lastBlock = newBlock;
+            this.byteBuffer = newBlock.acquire();
+            blockThreadLocal.set(newBlock);
+        }
+    }
 
     void add(byte[] msg) {
-        queueBuffer.putInt(msg.length);
-        queueBuffer.put(msg);
-        if(msgCounter.incrementAndGet() % 10 == 0) {
-            queueBuffer.position(queueBuffer.capacity());
-            queueBuffer.flip();
-            fileManager.get().putMessage(queueId, queueBuffer);
-            queueBuffer.clear();
+        if (byteBuffer.remaining() < msg.length + 4) {
+            byteBuffer.position(byteBuffer.capacity());
+            lastBlock.notifyFull();
+            updateToNewByteBuffer();
         }
+        byteBuffer.putInt(msg.length);
+        byteBuffer.put(msg);
     }
-
-    boolean firstGet = true;
 
     ArrayList<byte[]> getMessages(long offset, long num) {
-        if(firstGet) {
-            firstGet = false;
-            queueBuffer.position(queueBuffer.capacity());
-            queueBuffer.flip();
-            lastFileManager.lastPut(queueId, queueBuffer);
-            queueBuffer.clear();
-            queueBuffer = null;
-        }
-        return fileManager.get().getMessage(queueId, (int)offset, (int)num);
+//       return new ArrayList<>();
+        throw new NoSuchElementException("not implemented!");
     }
+
 }
