@@ -36,23 +36,34 @@ public class RDPQueue {
             this.byteBuffer = newBlock.acquire();
             blockThreadLocal.set(newBlock);
         }
-        int[] index = new int[]{lastBlock.blockId, lastBlock.currentPosition - 1, msgCount.get()};
+        updateIndexes();
+    }
+
+    void updateIndexes() {
+        int[] index = new int[]{lastBlock.blockId, lastBlock.currentPosition - 1};
         indexes.add(index);
     }
 
     void add(byte[] msg) {
-        if (byteBuffer.remaining() < msg.length + 4) {
+        if (byteBuffer.remaining() < msg.length + 4 || msgCount.incrementAndGet() % Constants.msgBatch == 0) {
             byteBuffer.position(byteBuffer.capacity());
             lastBlock.notifyFull();
             updateToNewByteBuffer();
         }
         byteBuffer.putInt(msg.length);
         byteBuffer.put(msg);
-        msgCount.getAndIncrement();
     }
 
+    private boolean firstGet = true;
+
+
     ArrayList<byte[]> getMessages(long offset, long num) {
-//       return new ArrayList<>();
+        if(firstGet) {
+            firstGet = false;
+            byteBuffer.position(byteBuffer.capacity());
+            lastBlock.notifyFull();
+            updateIndexes();
+        }
         throw new NoSuchElementException("not implemented!");
     }
 
