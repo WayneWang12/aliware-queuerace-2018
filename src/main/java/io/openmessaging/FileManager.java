@@ -57,11 +57,11 @@ public class FileManager implements Runnable {
                     while (!blocksPool.offer(block));
                 }
             }
-            try {
-                Thread.sleep(1l);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                Thread.sleep(1l);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
         }
     }
 }

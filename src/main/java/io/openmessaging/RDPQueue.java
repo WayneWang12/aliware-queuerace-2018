@@ -7,11 +7,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class RDPQueue {
 
-
-    final int queueId;
     ByteBuffer byteBuffer;
     Block lastBlock;
-    ArrayList<int[]> indexes = new ArrayList<>();
+
+//    long[] indexes = new long[50];
 
     static FileManager fileManager = new FileManager();
     static {
@@ -20,8 +19,7 @@ public class RDPQueue {
 
     static ThreadLocal<Block> blockThreadLocal = ThreadLocal.withInitial(fileManager::acquire);
 
-    public RDPQueue(int queueId) {
-        this.queueId = queueId;
+    public RDPQueue() {
         updateToNewByteBuffer();
     }
 
@@ -36,33 +34,37 @@ public class RDPQueue {
             this.byteBuffer = newBlock.acquire();
             blockThreadLocal.set(newBlock);
         }
-        updateIndexes();
+//        updateIndexes();
     }
 
-    void updateIndexes() {
-        int[] index = new int[]{lastBlock.blockId, lastBlock.currentPosition - 1};
-        indexes.add(index);
-    }
+    int currentPosition = 0;
+
+//    void updateIndexes() {
+//        long position = lastBlock.blockId * Constants.blockSize  + (lastBlock.currentPosition - 1) * Constants.bufferSize;
+//        indexes[currentPosition++] = position;
+//    }
 
     void add(byte[] msg) {
-        if (byteBuffer.remaining() < msg.length + 4 || msgCount.incrementAndGet() % Constants.msgBatch == 0) {
+        if (byteBuffer.remaining() < msg.length + 4) {
             byteBuffer.position(byteBuffer.capacity());
             lastBlock.notifyFull();
             updateToNewByteBuffer();
         }
-        byteBuffer.putInt(msg.length);
+        byteBuffer.put((byte) msg.length);
         byteBuffer.put(msg);
     }
 
     private boolean firstGet = true;
 
+    static AtomicInteger got = new AtomicInteger();
 
     ArrayList<byte[]> getMessages(long offset, long num) {
         if(firstGet) {
             firstGet = false;
+            got.getAndIncrement();
             byteBuffer.position(byteBuffer.capacity());
             lastBlock.notifyFull();
-            updateIndexes();
+//            updateIndexes();
         }
         throw new NoSuchElementException("not implemented!");
     }
