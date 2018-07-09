@@ -36,7 +36,7 @@ public class FileManager {
 
     private AtomicInteger currentBlock = new AtomicInteger();
 
-    private AtomicInteger lastPutCounter = new AtomicInteger();
+    static AtomicInteger lastPutCounter = new AtomicInteger();
 
     void lastPut(int queueId, ByteBuffer msg) {
         putMessage(queueId, msg);
@@ -60,12 +60,11 @@ public class FileManager {
             writeBuffer.position(writeBuffer.capacity());
             writeBuffer.flip();
             try {
-                fileChannel.write(writeBuffer, (long)currentBlock.getAndIncrement() * blockSize);
+                fileChannel.write(writeBuffer, (long) currentBlock.getAndIncrement() * blockSize);
             } catch (IOException e) {
                 e.printStackTrace();
             }
             writeBuffer.clear();
-            currentBlock.getAndIncrement();
         }
         int position = writeBuffer.position();
         int[] index = {fileId, currentBlock.get(), position};
@@ -100,7 +99,7 @@ public class FileManager {
     ArrayList<byte[]> getMessagesBy(FileKey key, int positionInBlock, int offset, int num) {
         if (!lruCache.containsKey(key)) {
             try {
-                MappedByteBuffer mappedByteBuffer = fileChannelConcurrentMap.get(key.getFileId()).map(FileChannel.MapMode.READ_ONLY, (long)key.getBlockId() * blockSize, blockSize);
+                MappedByteBuffer mappedByteBuffer = fileChannelConcurrentMap.get(key.getFileId()).map(FileChannel.MapMode.READ_ONLY, (long) key.getBlockId() * blockSize, blockSize);
                 lruCache.put(key, mappedByteBuffer);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -115,9 +114,11 @@ public class FileManager {
         ArrayList<byte[]> result = new ArrayList<>(num);
         for (int i = 0; i < num; i++) {
             int length = byteBuffer.getInt();
-            byte[] msg = new byte[length];
-            byteBuffer.get(msg);
-            result.add(msg);
+            if (length != 0) {
+                byte[] msg = new byte[length];
+                byteBuffer.get(msg);
+                result.add(msg);
+            }
         }
         return result;
     }

@@ -11,7 +11,7 @@ public class QueueManager {
     final int queueId;
 
     static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
-
+    static FileManager lastFileManager = fileManager.get();
 
     public QueueManager(int queueId) {
         this.queueId = queueId;
@@ -37,7 +37,7 @@ public class QueueManager {
             firstGet = false;
             queueBuffer.position(queueBuffer.capacity());
             queueBuffer.flip();
-            fileManager.get().lastPut(queueId, queueBuffer);
+            lastFileManager.lastPut(queueId, queueBuffer);
             queueBuffer.clear();
             queueBuffer = null;
         }
