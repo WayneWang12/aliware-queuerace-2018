@@ -1,8 +1,5 @@
 package io.openmessaging;
 
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscLinkedQueue7;
-
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
