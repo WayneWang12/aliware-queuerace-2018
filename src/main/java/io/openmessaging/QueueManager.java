@@ -1,34 +1,25 @@
 package io.openmessaging;
 
-import io.openmessaging.utils.DirectByteBufferPool;
-
 import java.nio.ByteBuffer;
 
 public class QueueManager {
 
-    static public DirectByteBufferPool pool = new DirectByteBufferPool(2000000);
-
-    private ByteBuffer queueBuffer = pool.acquire();
+    private ByteBuffer queueBuffer = ByteBuffer.allocateDirect(1024);
 
     final int queueId;
 
-    static FileManager fileManager;
-
-    static {
-        fileManager = new FileManager();
-    }
+    static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
 
     public QueueManager(int queueId) {
         this.queueId = queueId;
     }
 
-
     void add(byte[] msg) {
         if(queueBuffer.remaining() < msg.length + 4) {
             queueBuffer.position(queueBuffer.capacity());
             queueBuffer.flip();
-            fileManager.putMessage(queueId, queueBuffer);
-            queueBuffer = pool.acquire();
+            fileManager.get().putMessage(queueId, queueBuffer);
+            queueBuffer.clear();
         }
         queueBuffer.putInt(msg.length);
         queueBuffer.put(msg);
