@@ -8,7 +8,7 @@ import java.nio.channels.FileChannel;
 public class FileManager {
 
     private FileChannel fileChannel;
-    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(4 * 1024 * 1024);
+    private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(64 * 1024);
 
     FileManager() {
         try {
