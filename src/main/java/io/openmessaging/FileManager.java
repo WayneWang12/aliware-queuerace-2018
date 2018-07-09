@@ -18,7 +18,7 @@ public class FileManager {
     private FileChannel fileChannel;
     private ByteBuffer writeBuffer = ByteBuffer.allocateDirect(blockSize);
     static ConcurrentMap<Integer, ArrayList<int[]>> queueIndex = new ConcurrentHashMap<>();
-    static ConcurrentMap<Integer, FileChannel> fileChannelConcurrentMap = new ConcurrentHashMap<>();
+    static ConcurrentMap<Integer, FileManager> fileChannelConcurrentMap = new ConcurrentHashMap<>();
     static AtomicInteger globalFileId = new AtomicInteger();
 
     private int fileId;
@@ -28,7 +28,7 @@ public class FileManager {
         try {
             this.fileChannel =
                     new RandomAccessFile("/alidata1/race2018/data/" + Thread.currentThread().getName(), "rw").getChannel();
-            fileChannelConcurrentMap.putIfAbsent(fileId, fileChannel);
+            fileChannelConcurrentMap.putIfAbsent(fileId, this);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -38,20 +38,25 @@ public class FileManager {
 
     static AtomicInteger lastPutCounter = new AtomicInteger();
 
+    void lastPut() {
+        writeBuffer.position(writeBuffer.capacity());
+        writeBuffer.flip();
+        try {
+            fileChannel.write(writeBuffer, currentBlock.getAndIncrement() * blockSize);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        writeBuffer.clear();
+        writeBuffer = null;
+        currentBlock.getAndIncrement();
+    }
+
     void lastPut(int queueId, ByteBuffer msg) {
         putMessage(queueId, msg);
         int lastPutNumber = lastPutCounter.incrementAndGet();
         if (lastPutNumber == DefaultQueueStoreImpl.queueMap.size()) {
-            writeBuffer.position(writeBuffer.capacity());
-            writeBuffer.flip();
-            try {
-                fileChannel.write(writeBuffer, currentBlock.getAndIncrement() * blockSize);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            writeBuffer.clear();
-            writeBuffer = null;
-            currentBlock.getAndIncrement();
+            fileChannelConcurrentMap.forEach((id, fm) -> fm.lastPut());
+            System.gc();
         }
     }
 
@@ -77,6 +82,9 @@ public class FileManager {
 
 
     ArrayList<byte[]> getMessage(int queueId, int offset, int num) {
+        if(offset == 190) {
+            System.out.println("kljskldfjk");
+        }
         ArrayList<int[]> indexes = queueIndex.get(queueId);
         int start = offset / Constants.msgBatch;
         int end = (offset + num) / Constants.msgBatch;
@@ -89,7 +97,11 @@ public class FileManager {
         }
     }
 
-    static LRUCache<FileKey, MappedByteBuffer> lruCache = new LRUCache<>(1000);
+    static LRUCache<FileKey, MappedByteBuffer> lruCache = new LRUCache<>(20000);
+
+    MappedByteBuffer map(int blockId) throws IOException {
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, (long) blockId * blockSize, blockSize);
+    }
 
     ArrayList<byte[]> getMessagesByIndex(int[] ints, int index, int offset, int num) {
         FileKey fileKey = new FileKey(ints[0], ints[1]);
@@ -99,7 +111,7 @@ public class FileManager {
     ArrayList<byte[]> getMessagesBy(FileKey key, int positionInBlock, int offset, int num) {
         if (!lruCache.containsKey(key)) {
             try {
-                MappedByteBuffer mappedByteBuffer = fileChannelConcurrentMap.get(key.getFileId()).map(FileChannel.MapMode.READ_ONLY, (long) key.getBlockId() * blockSize, blockSize);
+                MappedByteBuffer mappedByteBuffer = fileChannelConcurrentMap.get(key.getFileId()).map(key.getBlockId());
                 lruCache.put(key, mappedByteBuffer);
             } catch (IOException e) {
                 e.printStackTrace();
