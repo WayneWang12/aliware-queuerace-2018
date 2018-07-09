@@ -15,7 +15,7 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     public static Collection<byte[]> EMPTY = new ArrayList<byte[]>();
 
-    Map<String, QueueManager> queueMap = new ConcurrentHashMap<>();
+    static  Map<String, QueueManager> queueMap = new ConcurrentHashMap<>();
 
     AtomicInteger queueId = new AtomicInteger();
 
@@ -29,7 +29,6 @@ public class DefaultQueueStoreImpl extends QueueStore {
         if (!queueMap.containsKey(queueName)) {
             return EMPTY;
         }
-        QueueManager queue = queueMap.get(queueName);
-        throw new NoSuchElementException("not implemented");
+        return queueMap.get(queueName).getMessages(offset, num);
     }
 }

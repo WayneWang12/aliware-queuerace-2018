@@ -27,7 +27,7 @@ public class GetTest {
     }
 
     private static byte[] generate1K(byte head){
-        byte[] K = new byte[1024];
+        byte[] K = new byte[58];
         K[0] = head;
         return K;
     }

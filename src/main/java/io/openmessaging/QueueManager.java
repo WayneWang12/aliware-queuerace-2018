@@ -1,6 +1,8 @@
 package io.openmessaging;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class QueueManager {
 
@@ -10,22 +12,35 @@ public class QueueManager {
 
     static ThreadLocal<FileManager> fileManager = ThreadLocal.withInitial(FileManager::new);
 
+
     public QueueManager(int queueId) {
         this.queueId = queueId;
     }
 
+    AtomicInteger msgCounter = new AtomicInteger();
+
     void add(byte[] msg) {
-        if(queueBuffer.remaining() < msg.length + 4) {
+        queueBuffer.putInt(msg.length);
+        queueBuffer.put(msg);
+        if(msgCounter.incrementAndGet() % 10 == 0) {
             queueBuffer.position(queueBuffer.capacity());
             queueBuffer.flip();
             fileManager.get().putMessage(queueId, queueBuffer);
             queueBuffer.clear();
         }
-        queueBuffer.putInt(msg.length);
-        queueBuffer.put(msg);
     }
 
-    void getMessages(long offset, long num) {
+    boolean firstGet = true;
 
+    ArrayList<byte[]> getMessages(long offset, long num) {
+        if(firstGet) {
+            firstGet = false;
+            queueBuffer.position(queueBuffer.capacity());
+            queueBuffer.flip();
+            fileManager.get().lastPut(queueId, queueBuffer);
+            queueBuffer.clear();
+            queueBuffer = null;
+        }
+        return fileManager.get().getMessage(queueId, (int)offset, (int)num);
     }
 }
