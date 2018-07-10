@@ -10,4 +10,5 @@ public interface Constants {
     long MAX_DIRECT_BUFFER_SIZE = 3 * 1024 * 1024 * 1024l;
     String filePath = "/alidata1/race2018/data/rdp";
     ArrayList<byte[]> EMPTY = new ArrayList<>();
+    int queueSize = 1000000;
 }

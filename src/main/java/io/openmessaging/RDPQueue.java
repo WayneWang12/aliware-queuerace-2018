@@ -6,14 +6,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class RDPQueue {
 
-    int queueId;
     FileManager fileManager;
     ByteBuffer byteBuffer;
+    long[] indexes = new long[200];
+    int currentIndex = 0;
 
-    public RDPQueue(int queueId, FileManager fileManager) {
-        this.queueId = queueId;
+    void setIndex(long position) {
+        if (currentIndex < 200) {
+            indexes[currentIndex++] = position;
+        }
+    }
+
+    public RDPQueue(FileManager fileManager) {
         this.fileManager = fileManager;
-        this.byteBuffer = fileManager.acquireQueueBuffer(queueId);
+        this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
     AtomicInteger msgCounter = new AtomicInteger();
@@ -29,7 +35,7 @@ public class RDPQueue {
 
     private void flush() {
         byteBuffer.position(byteBuffer.capacity());
-        byteBuffer = fileManager.acquireQueueBuffer(queueId);
+        byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
     boolean firstGet = true;
@@ -57,9 +63,8 @@ public class RDPQueue {
     }
 
     private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
-        ArrayList<Long> indexList = RDPBlock.rdpQueueIndexes.get(queueId);
-        if (indexPosition < indexList.size()) {
-            long filePosition = indexList.get(indexPosition);
+        if (indexPosition < indexes.length) {
+            long filePosition = indexes[indexPosition];
             long bufferPosition = (filePosition % Constants.blockSize);
             long blockId = (filePosition / Constants.blockSize);
             return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);

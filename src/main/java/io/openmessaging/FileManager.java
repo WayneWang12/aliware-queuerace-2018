@@ -26,15 +26,9 @@ public class FileManager {
         this.rdpBlockArrayList = new ArrayList<>();
         try {
             this.fileChannel =  new RandomAccessFile(Constants.filePath, "rw").getChannel();
-//                    FileChannel.open(Paths.get(Constants.filePath),
-//                    StandardOpenOption.CREATE,
-//                    StandardOpenOption.READ,
-//                    StandardOpenOption.WRITE,
-//                    StandardOpenOption.DELETE_ON_CLOSE);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
         for (int i = 0; i < blockNumber; i++) {
             RDPBlock rdpBlock = new RDPBlock(ByteBuffer.allocateDirect((int) Constants.blockSize));
@@ -55,14 +49,14 @@ public class FileManager {
 
     AtomicBoolean inReadStage = new AtomicBoolean(false);
 
-    ByteBuffer acquireQueueBuffer(int queueId) {
+    ByteBuffer acquireQueueBuffer(RDPQueue queue) {
         RDPBlock rdpBlock = rdpBlockThreadLocal.get();
         ByteBuffer queueBuffer;
-        if (rdpBlock == null || (queueBuffer = rdpBlock.acquireQueueBuffer(queueId)) == null) {
+        if (rdpBlock == null || (queueBuffer = rdpBlock.acquireQueueBuffer(queue)) == null) {
             while ((rdpBlock = rdpBlocksPool.poll()) == null) {
             }
             rdpBlock.blockPositionInFile = currentFilePosition.getAndAdd(Constants.blockSize);
-            queueBuffer = rdpBlock.acquireQueueBuffer(queueId);
+            queueBuffer = rdpBlock.acquireQueueBuffer(queue);
             rdpBlockThreadLocal.set(rdpBlock);
         }
         return queueBuffer;
@@ -110,6 +104,8 @@ public class FileManager {
         }
         return messages;
     }
+
+    volatile boolean WriteDone;
 
     class Flusher implements Runnable {
 
@@ -161,6 +157,7 @@ public class FileManager {
             while (true) {
                 if (inReadStage.get()) {
                     flushDirtyRdpBlocks();
+                    WriteDone = true;
                     System.out.println("flush task " + id + " completed.");
                     return;
                 } else {

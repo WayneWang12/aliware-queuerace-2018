@@ -1,12 +1,6 @@
 package io.openmessaging;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static io.openmessaging.Constants.EMPTY;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -15,22 +9,42 @@ import static io.openmessaging.Constants.EMPTY;
 public class DefaultQueueStoreImpl extends QueueStore {
 
 
-    static  Map<String, RDPQueue> queueMap = new ConcurrentHashMap<>();
-
-    AtomicInteger queueId = new AtomicInteger();
-
+    RDPQueue[] queueMap = new RDPQueue[Constants.queueSize];
+    private static final String PRE = "Queue-";
     FileManager fileManager = new FileManager();
 
-    public void put(String queueName, byte[] message) {
-        if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new RDPQueue(queueId.getAndIncrement(), fileManager));
+    {
+        for (int i = 0; i < queueMap.length; i++) {
+            queueMap[i] = new RDPQueue(fileManager);
         }
-        queueMap.get(queueName).add(message);
     }
-    public synchronized Collection<byte[]> get(String queueName, long offset, long num) {
-        if (!queueMap.containsKey(queueName)) {
-            return EMPTY;
+
+    int getIndex(String queueName) {
+        return Integer.valueOf(queueName.substring(PRE.length()));
+    }
+
+
+    public void put(String queueName, byte[] message) {
+        queueMap[getIndex(queueName)].add(message);
+    }
+
+    private static Object lock = new Object();
+
+    public Collection<byte[]> get(String queueName, long offset, long num) {
+
+        if (!fileManager.WriteDone) {
+            synchronized (lock) {
+                fileManager.inReadStage.set(true);
+                while (!fileManager.WriteDone) {
+                    try {
+                        Thread.sleep(1l);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
         }
-        return queueMap.get(queueName).getMessages((int)offset, (int) num);
+
+        return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
     }
 }

@@ -39,13 +39,10 @@ public class RDPBlock {
         return full;
     }
 
-    ByteBuffer acquireQueueBuffer(int queueId) {
+    ByteBuffer acquireQueueBuffer(RDPQueue queue) {
         if(currentPosition < bufferNumber) {
             long queueFilePosition = (long)currentPosition * Constants.bufferSize + blockPositionInFile;
-            if(!rdpQueueIndexes.containsKey(queueId)) {
-                rdpQueueIndexes.put(queueId, new ArrayList<>());
-            }
-            rdpQueueIndexes.get(queueId).add(queueFilePosition);
+            queue.setIndex(queueFilePosition);
             return bufferForQueues[currentPosition++];
         }
         return null;

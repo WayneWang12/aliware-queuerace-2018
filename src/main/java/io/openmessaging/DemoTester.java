@@ -223,7 +223,7 @@ public class DemoTester {
                         }
                     }
                     long c = checkCounter.getAndIncrement();
-                    if (c % 10000 == 0) {
+                    if (c % 100000 == 0) {
                         System.out.println(c + " messages checked. time " + (System.currentTimeMillis() - checkStartTimestamp) + "ms");
                     }
                 } catch (Throwable t) {
