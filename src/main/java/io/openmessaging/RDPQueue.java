@@ -10,7 +10,7 @@ public class RDPQueue {
     ByteBuffer byteBuffer;
     Block lastBlock;
 
-//    long[] indexes = new long[50];
+    long[] indexes = new long[100];
 
     static FileManager fileManager = new FileManager();
     static {
@@ -34,15 +34,15 @@ public class RDPQueue {
             this.byteBuffer = newBlock.acquire();
             blockThreadLocal.set(newBlock);
         }
-//        updateIndexes();
+        updateIndexes();
     }
 
     int currentPosition = 0;
 
-//    void updateIndexes() {
-//        long position = lastBlock.blockId * Constants.blockSize  + (lastBlock.currentPosition - 1) * Constants.bufferSize;
-//        indexes[currentPosition++] = position;
-//    }
+    void updateIndexes() {
+        long position = lastBlock.blockId * Constants.blockSize  + (lastBlock.currentPosition - 1) * Constants.bufferSize;
+        indexes[currentPosition++] = position;
+    }
 
     void add(byte[] msg) {
         if (byteBuffer.remaining() < msg.length + 4) {
@@ -61,11 +61,14 @@ public class RDPQueue {
     ArrayList<byte[]> getMessages(long offset, long num) {
         if(firstGet) {
             firstGet = false;
-            got.getAndIncrement();
+            if(got.getAndIncrement() == DefaultQueueStoreImpl.queueMap.size()) {
+                fileManager.inReadStage.set(true);
+            };
             byteBuffer.position(byteBuffer.capacity());
             lastBlock.notifyFull();
-//            updateIndexes();
+            updateIndexes();
         }
+//        offset / Constants.msgBatch
         throw new NoSuchElementException("not implemented!");
     }
 
