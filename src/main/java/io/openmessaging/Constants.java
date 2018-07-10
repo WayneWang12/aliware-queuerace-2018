@@ -11,4 +11,5 @@ public interface Constants {
     String filePath = "/alidata1/race2018/data/rdp";
     ArrayList<byte[]> EMPTY = new ArrayList<>();
     int queueSize = 1000000;
+    int indexCheckNumber = 100 * 10000;
 }

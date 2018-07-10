@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +23,7 @@ public class FileManager {
     FileManager() {
         this.rdpBlockArrayList = new ArrayList<>();
         try {
-            this.fileChannel =  new RandomAccessFile(Constants.filePath, "rw").getChannel();
+            this.fileChannel = new RandomAccessFile(Constants.filePath, "rw").getChannel();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -49,7 +47,7 @@ public class FileManager {
 
     AtomicBoolean inReadStage = new AtomicBoolean(false);
 
-    ByteBuffer acquireQueueBuffer(RDPQueue queue) {
+    Tuple<ByteBuffer, RDPBlock> acquireQueueBuffer(RDPQueue queue) {
         RDPBlock rdpBlock = rdpBlockThreadLocal.get();
         ByteBuffer queueBuffer;
         if (rdpBlock == null || (queueBuffer = rdpBlock.acquireQueueBuffer(queue)) == null) {
@@ -59,7 +57,7 @@ public class FileManager {
             queueBuffer = rdpBlock.acquireQueueBuffer(queue);
             rdpBlockThreadLocal.set(rdpBlock);
         }
-        return queueBuffer;
+        return new Tuple<>(queueBuffer, rdpBlock);
     }
 
     Cache<Integer, RDPBlock> readCache = Caffeine.newBuilder()
@@ -78,7 +76,7 @@ public class FileManager {
             while ((block = rdpBlocksPool.poll()) == null) {
                 System.out.println("run out of block.");
             }
-            long filePosition = blockId *  Constants.blockSize;
+            long filePosition = blockId * Constants.blockSize;
             try {
                 block.rdpBuffer.clear();
                 fileChannel.read(block.rdpBuffer, filePosition);
@@ -135,7 +133,7 @@ public class FileManager {
         }
 
         void flushDirtyRdpBlocks() {
-           for (int i = id; i < rdpBlockArrayList.size(); i += step) {
+            for (int i = id; i < rdpBlockArrayList.size(); i += step) {
                 RDPBlock rdpBlock = rdpBlockArrayList.get(i);
                 if (rdpBlock.blockPositionInFile != -1) {
                     rdpBlock.rdpBuffer.clear();

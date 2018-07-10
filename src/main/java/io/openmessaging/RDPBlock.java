@@ -9,8 +9,8 @@ public class RDPBlock {
     ByteBuffer[] bufferForQueues;
     int bufferNumber;
     int currentPosition = 0;
-    boolean full = false;
     long blockPositionInFile = -1;
+    int fullQueueNumber = 0;
 
     public RDPBlock(ByteBuffer rdpBuffer) {
         this.rdpBuffer = rdpBuffer;
@@ -24,20 +24,14 @@ public class RDPBlock {
         this.bufferNumber = i;
     }
 
-    static ConcurrentHashMap<Integer, ArrayList<Long>> rdpQueueIndexes = new ConcurrentHashMap<>();
-
+    void notifyFull() {
+        fullQueueNumber++;
+    }
 
     public boolean isFull() {
-        if(!full && blockPositionInFile > 0) {
-            for(ByteBuffer bb:bufferForQueues) {
-                if(!(bb.position() == bb.limit())) {
-                    return false;
-                }
-            }
-            full = true;
-        }
-        return full;
+        return fullQueueNumber == bufferNumber;
     }
+
 
     ByteBuffer acquireQueueBuffer(RDPQueue queue) {
         if(currentPosition < bufferNumber) {
@@ -50,7 +44,7 @@ public class RDPBlock {
 
     public void resetState() {
         this.currentPosition = 0;
-        this.full = false;
+        this.fullQueueNumber = 0;
         this.blockPositionInFile = -1;
         for(ByteBuffer bb:bufferForQueues) {
             bb.clear();

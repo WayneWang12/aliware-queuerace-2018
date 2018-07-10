@@ -10,6 +10,8 @@ public class RDPQueue {
     ByteBuffer byteBuffer;
     long[] indexes = new long[200];
     int currentIndex = 0;
+    RDPBlock lastBlock;
+    private static final AtomicInteger requestCounter = new AtomicInteger();
 
     void setIndex(long position) {
         if (currentIndex < 200) {
@@ -19,7 +21,9 @@ public class RDPQueue {
 
     public RDPQueue(FileManager fileManager) {
         this.fileManager = fileManager;
-        this.byteBuffer = fileManager.acquireQueueBuffer(this);
+        Tuple<ByteBuffer, RDPBlock> tuple = fileManager.acquireQueueBuffer(this);
+        this.byteBuffer = tuple.first;
+        this.lastBlock = tuple.second;
     }
 
     AtomicInteger msgCounter = new AtomicInteger();
@@ -29,23 +33,19 @@ public class RDPQueue {
         byteBuffer.put(msg);
         int msgCount = msgCounter.incrementAndGet();
         if (msgCount % 20 == 0) {
+            lastBlock.notifyFull();
             flush();
         }
     }
 
     private void flush() {
         byteBuffer.position(byteBuffer.capacity());
-        byteBuffer = fileManager.acquireQueueBuffer(this);
+        Tuple<ByteBuffer, RDPBlock> tuple = fileManager.acquireQueueBuffer(this);
+        this.byteBuffer = tuple.first;
+        this.lastBlock = tuple.second;
     }
 
-    boolean firstGet = true;
-
     ArrayList<byte[]> getMessages(int offset, int num) {
-        if (firstGet) {
-            firstGet = false;
-            flush();
-            fileManager.inReadStage.set(true);
-        }
         return findMessagesInBlockByOffsetAndNumber(offset, num);
     }
 
@@ -57,7 +57,7 @@ public class RDPQueue {
             return getMessages(start, num, offsetInBuffer);
         } else {
             ArrayList<byte[]> messages = getMessages(start, end * Constants.msgBatch - offset, offsetInBuffer);
-            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch, 0));
+            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch - 1, 0));
             return messages;
         }
     }
