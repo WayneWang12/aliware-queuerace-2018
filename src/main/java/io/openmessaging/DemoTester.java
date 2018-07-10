@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class DemoTester {
 
-    private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqo";
+    private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqq";
     private final static int msgPrefixLength = msgPrefix.length();
     private static long sendStartTimestamp;
     private static long checkStartTimestamp;

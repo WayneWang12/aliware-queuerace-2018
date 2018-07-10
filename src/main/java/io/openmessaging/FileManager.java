@@ -103,7 +103,7 @@ public class FileManager {
         return messages;
     }
 
-    volatile boolean WriteDone;
+    volatile boolean WriteDone = false;
 
     class Flusher implements Runnable {
 

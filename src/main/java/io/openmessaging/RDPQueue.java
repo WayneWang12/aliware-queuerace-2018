@@ -45,6 +45,7 @@ public class RDPQueue {
         this.lastBlock = tuple.second;
     }
 
+
     ArrayList<byte[]> getMessages(int offset, int num) {
         return findMessagesInBlockByOffsetAndNumber(offset, num);
     }
