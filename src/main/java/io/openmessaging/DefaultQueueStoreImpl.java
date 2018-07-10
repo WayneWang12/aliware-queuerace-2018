@@ -1,6 +1,11 @@
 package io.openmessaging;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static io.openmessaging.Constants.EMPTY;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -9,30 +14,21 @@ import java.util.Collection;
 public class DefaultQueueStoreImpl extends QueueStore {
 
 
-    RDPQueue[] queueMap = new RDPQueue[Constants.queueSize];
-    private static final String PRE = "Queue-";
+    ConcurrentHashMap<String, RDPQueue> queueMap = new ConcurrentHashMap<>();
+
     FileManager fileManager = new FileManager();
 
-    {
-        for (int i = 0; i < queueMap.length; i++) {
-            queueMap[i] = new RDPQueue(fileManager);
-        }
-    }
-
-    int getIndex(String queueName) {
-        return Integer.valueOf(queueName.substring(PRE.length()));
-    }
-
-
     public void put(String queueName, byte[] message) {
-        queueMap[getIndex(queueName)].add(message);
+        if (!queueMap.containsKey(queueName)) {
+            queueMap.put(queueName, new RDPQueue(fileManager));
+        }
+        queueMap.get(queueName).add(message);
     }
 
     private static Object lock = new Object();
 
     public Collection<byte[]> get(String queueName, long offset, long num) {
-
-        if (!fileManager.WriteDone) {
+        if(!fileManager.WriteDone) {
             synchronized (lock) {
                 fileManager.inReadStage.set(true);
                 while (!fileManager.WriteDone) {
@@ -45,6 +41,9 @@ public class DefaultQueueStoreImpl extends QueueStore {
             }
         }
 
-        return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
+        if (!queueMap.containsKey(queueName)) {
+            return EMPTY;
+        }
+        return queueMap.get(queueName).getMessages((int)offset, (int) num);
     }
 }

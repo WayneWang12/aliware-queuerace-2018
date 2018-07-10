@@ -1,17 +1,14 @@
 package io.openmessaging;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class RDPBlock {
     ByteBuffer rdpBuffer;
     ByteBuffer[] bufferForQueues;
     int bufferNumber;
     int currentPosition = 0;
+    boolean full = false;
     long blockPositionInFile = -1;
-    AtomicInteger fullQueueNumber = new AtomicInteger();
 
     public RDPBlock(ByteBuffer rdpBuffer) {
         this.rdpBuffer = rdpBuffer;
@@ -25,17 +22,17 @@ public class RDPBlock {
         this.bufferNumber = i;
     }
 
-    void notifyFull() {
-        fullQueueNumber.getAndIncrement();
-        if(fullQueueNumber.get() == bufferNumber) {
-            System.out.println("full event noticed.");
-        }
-    }
-
     public boolean isFull() {
-        return fullQueueNumber.get() == bufferNumber;
+        if(!full && blockPositionInFile > 0) {
+            for(ByteBuffer bb:bufferForQueues) {
+                if(!(bb.position() == bb.limit())) {
+                    return false;
+                }
+            }
+            full = true;
+        }
+        return full;
     }
-
 
     ByteBuffer acquireQueueBuffer(RDPQueue queue) {
         if(currentPosition < bufferNumber) {
@@ -48,7 +45,7 @@ public class RDPBlock {
 
     public void resetState() {
         this.currentPosition = 0;
-        this.fullQueueNumber.set(0);
+        this.full = false;
         this.blockPositionInFile = -1;
         for(ByteBuffer bb:bufferForQueues) {
             bb.clear();

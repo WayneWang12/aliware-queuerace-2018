@@ -8,22 +8,18 @@ public class RDPQueue {
 
     FileManager fileManager;
     ByteBuffer byteBuffer;
-    long[] indexes = new long[200];
+    long[] indexes = new long[100];
     int currentIndex = 0;
-    RDPBlock lastBlock;
-    private static final AtomicInteger requestCounter = new AtomicInteger();
 
     void setIndex(long position) {
-        if (currentIndex < 200) {
+        if (currentIndex < 100) {
             indexes[currentIndex++] = position;
         }
     }
 
     public RDPQueue(FileManager fileManager) {
         this.fileManager = fileManager;
-        Tuple<ByteBuffer, RDPBlock> tuple = fileManager.acquireQueueBuffer(this);
-        this.byteBuffer = tuple.first;
-        this.lastBlock = tuple.second;
+        this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
     AtomicInteger msgCounter = new AtomicInteger();
@@ -33,16 +29,13 @@ public class RDPQueue {
         byteBuffer.put(msg);
         int msgCount = msgCounter.incrementAndGet();
         if (msgCount % 20 == 0) {
-            lastBlock.notifyFull();
             flush();
         }
     }
 
     private void flush() {
         byteBuffer.position(byteBuffer.capacity());
-        Tuple<ByteBuffer, RDPBlock> tuple = fileManager.acquireQueueBuffer(this);
-        this.byteBuffer = tuple.first;
-        this.lastBlock = tuple.second;
+        this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
 

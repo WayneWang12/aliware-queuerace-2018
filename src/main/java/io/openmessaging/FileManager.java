@@ -34,7 +34,7 @@ public class FileManager {
             rdpBlocksPool.add(rdpBlock);
         }
 
-        int step = 1;
+        int step = 4;
 
         for (int i = 0; i < step; i++) {
             new Thread(new Flusher(i, step)).start();
@@ -47,7 +47,7 @@ public class FileManager {
 
     AtomicBoolean inReadStage = new AtomicBoolean(false);
 
-    Tuple<ByteBuffer, RDPBlock> acquireQueueBuffer(RDPQueue queue) {
+    ByteBuffer acquireQueueBuffer(RDPQueue queue) {
         RDPBlock rdpBlock = rdpBlockThreadLocal.get();
         ByteBuffer queueBuffer;
         if (rdpBlock == null || (queueBuffer = rdpBlock.acquireQueueBuffer(queue)) == null) {
@@ -57,7 +57,7 @@ public class FileManager {
             queueBuffer = rdpBlock.acquireQueueBuffer(queue);
             rdpBlockThreadLocal.set(rdpBlock);
         }
-        return new Tuple<>(queueBuffer, rdpBlock);
+        return queueBuffer;
     }
 
     Cache<Integer, RDPBlock> readCache = Caffeine.newBuilder()
