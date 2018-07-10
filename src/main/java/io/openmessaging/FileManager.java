@@ -6,14 +6,18 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileManager {
 
-    ArrayList<Block> blockArrayList = new ArrayList<>(Constants.blockNumber);
-    ConcurrentLinkedQueue<Block> blocksPool = new ConcurrentLinkedQueue<>();
+    static ArrayList<Block> blockArrayList = new ArrayList<>(Constants.blockNumber);
+    public static ConcurrentLinkedQueue<Block> blocksPool = new ConcurrentLinkedQueue<>();
+
+    ConcurrentHashMap<Integer, Block> readCache = new ConcurrentHashMap<>(Constants.blockNumber);
+
     FileChannel fileChannel;
 
     FileManager() {
@@ -39,6 +43,26 @@ public class FileManager {
     }
 
     AtomicBoolean inReadStage = new AtomicBoolean(false);
+    AtomicInteger readBlock = new AtomicInteger(0);
+
+    Block getBlockById(int blockId) {
+        Block block = readCache.get(blockId);
+        if (block == null) {
+            while ((block = blocksPool.poll()) == null) ;
+            try {
+                block.blockBuffer.clear();
+                fileChannel.read(block.blockBuffer, (long) blockId * Constants.blockSize);
+                block.blockId = blockId;
+                block.blockBuffer.clear();
+                block.reloadDataFromBlock();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return block;
+    }
+
+    static  AtomicBoolean needWrite = new AtomicBoolean(true);
 
     class FlushTask implements Runnable {
         private int id;
@@ -49,7 +73,7 @@ public class FileManager {
             this.step = step;
         }
 
-        private boolean firstRead = true;
+        boolean firstRead = true;
 
         @Override
         public void run() {
@@ -58,8 +82,8 @@ public class FileManager {
                     if(firstRead) {
                         firstRead = false;
                         findFullBlockAndWrite();
-                        System.out.println("write is done!");
                     }
+                    preReadBlock();
                 } else {
                     findFullBlockAndWrite();
                     try {
@@ -72,7 +96,35 @@ public class FileManager {
         }
 
         private void preReadBlock() {
+            Block block;
+            while ((block = blocksPool.poll()) == null) ;
+            try {
+                int blockId = readBlock.getAndIncrement();
+                block.blockBuffer.clear();
+                fileChannel.read(block.blockBuffer, (long) blockId * Constants.blockSize);
+                block.reloadDataFromBlock();
+                block.blockId = blockId;
+                readCache.put(blockId, block);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
+        void findBlockAndWrite() {
+             for (int i = id; i < blockArrayList.size(); i += step) {
+                Block block = blockArrayList.get(i);
+                if (block.currentPosition > 0) {
+                    block.blockBuffer.clear();
+                    try {
+                        long position = (long) block.blockId * Constants.blockSize;
+                        fileChannel.write(block.blockBuffer, position);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    block.resetState();
+                    while (!blocksPool.offer(block)) ;
+                }
+            }
         }
 
         private void findFullBlockAndWrite() {
@@ -81,7 +133,8 @@ public class FileManager {
                 if (block.isFull()) {
                     block.blockBuffer.clear();
                     try {
-                        fileChannel.write(block.blockBuffer, (long) block.blockId * Constants.blockSize);
+                        long position = (long) block.blockId * Constants.blockSize;
+                        fileChannel.write(block.blockBuffer, position);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -93,7 +146,7 @@ public class FileManager {
     }
 
     void start() {
-        int step = 1;
+        int step = 4;
         for (int n = 0; n < step; n++) {
             new Thread(new FlushTask(n, step)).start();
         }

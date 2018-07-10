@@ -17,10 +17,11 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     static  Map<String, RDPQueue> queueMap = new ConcurrentHashMap<>();
 
+    AtomicInteger queueId = new AtomicInteger();
 
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new RDPQueue());
+            queueMap.put(queueName, new RDPQueue(queueId.getAndIncrement()));
         }
         queueMap.get(queueName).add(message);
     }

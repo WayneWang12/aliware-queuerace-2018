@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class DemoTester {
 
-    private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqo";
+    private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqqoqqqqqqqqqqqoqqqqqqqq";
     private final static int msgPrefixLength = msgPrefix.length();
     private static long sendStartTimestamp;
     private static long checkStartTimestamp;
@@ -23,7 +23,7 @@ public class DemoTester {
     public static void main(String args[]) throws Exception {
         //评测相关配置
         //发送阶段的发送数量，也即发送阶段必须要在规定时间内把这些消息发送完毕方可
-        int msgNum = 200000000;
+        int msgNum = 20000000;
         //发送阶段的最大持续时间，也即在该时间内，如果消息依然没有发送完毕，则退出评测
         int sendTime = 2000 * 1000;
         //消费阶段的最大持续时间，也即在该时间内，如果消息依然没有消费完毕，则退出评测
@@ -149,7 +149,8 @@ public class DemoTester {
                 try {
                     String queueName = "Queue-" + count % queueCounter.size();
                     synchronized (queueCounter.get(queueName)) {
-                        String msgToPut = msgPrefix + String.valueOf(queueCounter.get(queueName).getAndIncrement());
+                        String number = String.valueOf(queueCounter.get(queueName).getAndIncrement());
+                        String msgToPut = msgPrefix + number;
                         queueStore.put(queueName, msgToPut.getBytes());
                         long c = producerCount.getAndIncrement();
                         if (c % 10000000 == 0) {

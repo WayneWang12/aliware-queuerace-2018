@@ -1,5 +1,7 @@
 package io.openmessaging.utils;
 
+import io.openmessaging.Block;
+import io.openmessaging.FileManager;
 import sun.nio.ch.DirectBuffer;
 
 import java.util.LinkedHashMap;
@@ -17,8 +19,8 @@ public class LRUCache < K, V > extends LinkedHashMap < K, V > {
     protected boolean removeEldestEntry(Entry entry) {
         boolean b = size() > this.capacity;
         if(b) {
-            if(entry.getValue() instanceof DirectBuffer) {
-                ((DirectBuffer) entry.getValue()).cleaner().clean();;
+            if(entry.getValue() instanceof Block) {
+                while (!FileManager.blocksPool.offer((Block) entry.getValue()));
             }
         }
         return b;

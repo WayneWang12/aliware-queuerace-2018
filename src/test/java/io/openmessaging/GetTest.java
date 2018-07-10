@@ -4,7 +4,7 @@ import java.util.Collection;
 
 public class GetTest {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         QueueStore store = new DefaultQueueStoreImpl();
 
         store.put("Queue-1", generate1K((byte) 0));
@@ -18,7 +18,9 @@ public class GetTest {
 
         System.out.println("put end");
 
-        print(store.get("Queue-1", 0, 2));   //0,1,2
+        Thread.sleep(2000);
+
+        print(store.get("Queue-1", 0, 2));   //0,1,
         print(store.get("Queue-1", 1, 3));   //1,2,3
         print(store.get("Queue-1", 3, 3));   //3,4,5
         print(store.get("Queue-1", 6, 3));   //6,6
