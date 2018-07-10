@@ -2,6 +2,7 @@ package io.openmessaging;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RDPQueue {
@@ -9,7 +10,8 @@ public class RDPQueue {
     FileManager fileManager;
     ByteBuffer byteBuffer;
     long[] indexes = new long[100];
-    int currentIndex = 0;
+    byte currentIndex = 0;
+    short queueSize = 0;
 
     void setIndex(long position) {
         if (currentIndex < 100) {
@@ -31,6 +33,7 @@ public class RDPQueue {
         if (msgCount % 20 == 0) {
             flush();
         }
+        queueSize++;
     }
 
     private void flush() {
@@ -40,6 +43,7 @@ public class RDPQueue {
 
 
     ArrayList<byte[]> getMessages(int offset, int num) {
+        ArrayList<byte[]> messages = new ArrayList<>();
         return findMessagesInBlockByOffsetAndNumber(offset, num);
     }
 
@@ -56,11 +60,19 @@ public class RDPQueue {
         }
     }
 
+
     private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
         if (indexPosition < indexes.length) {
             long filePosition = indexes[indexPosition];
             long bufferPosition = (filePosition % Constants.blockSize);
             long blockId = (filePosition / Constants.blockSize);
+            if(fileManager.readCache.getIfPresent(blockId) == null && indexPosition == 0) {
+                for(int i = indexPosition; i < currentIndex; i++) {
+                    long fp = indexes[i];
+                    long bid = (fp / Constants.blockSize);
+                    DefaultQueueStoreImpl.executorService.submit(() -> fileManager.getBlockDirty((int) bid));
+                }
+            }
             return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
         } else {
             return Constants.EMPTY;

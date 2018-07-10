@@ -1,11 +1,8 @@
 package io.openmessaging;
 
 import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static io.openmessaging.Constants.EMPTY;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -14,22 +11,36 @@ import static io.openmessaging.Constants.EMPTY;
 public class DefaultQueueStoreImpl extends QueueStore {
 
 
-    ConcurrentHashMap<String, RDPQueue> queueMap = new ConcurrentHashMap<>();
-
+    RDPQueue[] queueMap = new RDPQueue[Constants.queueSize];
+    private static final String PRE = "Queue-";
     FileManager fileManager = new FileManager();
 
-    public void put(String queueName, byte[] message) {
-        if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new RDPQueue(fileManager));
+    static ExecutorService executorService ;
+
+    {
+        for (int i = 0; i < queueMap.length; i++) {
+            queueMap[i] = new RDPQueue(fileManager);
         }
-        queueMap.get(queueName).add(message);
+    }
+
+    int getIndex(String queueName) {
+        return Integer.valueOf(queueName.substring(PRE.length()));
+    }
+
+
+    public void put(String queueName, byte[] message) {
+        queueMap[getIndex(queueName)].add(message);
     }
 
     private static Object lock = new Object();
 
     public Collection<byte[]> get(String queueName, long offset, long num) {
-        if(!fileManager.WriteDone) {
+
+        if (!fileManager.WriteDone) {
             synchronized (lock) {
+                if(executorService == null) {
+                    executorService = Executors.newFixedThreadPool(20);
+                }
                 fileManager.inReadStage.set(true);
                 while (!fileManager.WriteDone) {
                     try {
@@ -41,9 +52,6 @@ public class DefaultQueueStoreImpl extends QueueStore {
             }
         }
 
-        if (!queueMap.containsKey(queueName)) {
-            return EMPTY;
-        }
-        return queueMap.get(queueName).getMessages((int)offset, (int) num);
+        return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
     }
 }

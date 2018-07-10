@@ -18,6 +18,7 @@ public class FileManager {
     FileChannel fileChannel;
     ArrayList<RDPBlock> rdpBlockArrayList;
     static ConcurrentLinkedQueue<RDPBlock> rdpBlocksPool = new ConcurrentLinkedQueue<>();
+    static ConcurrentLinkedQueue<Integer> blockIds = new ConcurrentLinkedQueue<>();
     long blockNumber = Constants.MAX_DIRECT_BUFFER_SIZE / Constants.blockSize;
 
     FileManager() {
@@ -70,8 +71,33 @@ public class FileManager {
             .softValues()
             .build();
 
+    void getBlockDirty(int blockId) {
+        RDPBlock block = readCache.getIfPresent(blockId);
+        getRdpBlock(blockId, block);
+    }
+
     ArrayList<byte[]> getMessagesInBlock(long blockId, int offsetInBlock, int msgOffsetInBlock, int num) {
         RDPBlock block = readCache.getIfPresent(blockId);
+        block = getRdpBlock(blockId, block);
+        ByteBuffer bb = block.rdpBuffer.duplicate();
+        bb.position(offsetInBlock);
+        for (int i = 0; i < msgOffsetInBlock; i++) {
+            int length = bb.get();
+            bb.position(bb.position() + length);
+        }
+        ArrayList<byte[]> messages = new ArrayList<>();
+        for (int i = 0; i < num && i < 20 - msgOffsetInBlock; i++) {
+            int length = bb.get();
+            if (length != 0) {
+                byte[] msg = new byte[length];
+                bb.get(msg);
+                messages.add(msg);
+            }
+        }
+        return messages;
+    }
+
+    private RDPBlock getRdpBlock(long blockId, RDPBlock block) {
         if (block == null) {
             while ((block = rdpBlocksPool.poll()) == null) {
                 System.out.println("run out of block.");
@@ -85,22 +111,7 @@ public class FileManager {
                 e.printStackTrace();
             }
         }
-        ByteBuffer bb = block.rdpBuffer.duplicate();
-        bb.position(offsetInBlock);
-        for (int i = 0; i < msgOffsetInBlock; i++) {
-            int length = bb.get();
-            bb.position(bb.position() + length);
-        }
-        ArrayList<byte[]> messages = new ArrayList<>();
-        for (int i = 0; i < num; i++) {
-            int length = bb.get();
-            if (length != 0) {
-                byte[] msg = new byte[length];
-                bb.get(msg);
-                messages.add(msg);
-            }
-        }
-        return messages;
+        return block;
     }
 
     volatile boolean WriteDone = false;
@@ -149,15 +160,18 @@ public class FileManager {
             }
         }
 
+        boolean firstRead = true;
 
         @Override
         public void run() {
             while (true) {
                 if (inReadStage.get()) {
-                    flushDirtyRdpBlocks();
-                    WriteDone = true;
-                    System.out.println("flush task " + id + " completed.");
-                    return;
+                    if (firstRead) {
+                        firstRead = false;
+                        flushDirtyRdpBlocks();
+                        WriteDone = true;
+                        System.out.println("flush task " + id + " completed.");
+                    }
                 } else {
                     flushFullRdpBlocks();
                 }
