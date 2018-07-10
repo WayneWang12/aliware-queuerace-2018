@@ -1,155 +1,171 @@
 package io.openmessaging;
 
-import java.io.FileNotFoundException;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class FileManager {
-
-    static ArrayList<Block> blockArrayList = new ArrayList<>(Constants.blockNumber);
-    public static ConcurrentLinkedQueue<Block> blocksPool = new ConcurrentLinkedQueue<>();
-
-    ConcurrentHashMap<Integer, Block> readCache = new ConcurrentHashMap<>(Constants.blockNumber);
-
     FileChannel fileChannel;
+    ArrayList<RDPBlock> rdpBlockArrayList;
+    static ConcurrentLinkedQueue<RDPBlock> rdpBlocksPool = new ConcurrentLinkedQueue<>();
+    long blockNumber = Constants.MAX_DIRECT_BUFFER_SIZE / Constants.blockSize;
 
     FileManager() {
+        this.rdpBlockArrayList = new ArrayList<>();
         try {
-            this.fileChannel = new RandomAccessFile(Constants.filePath, "rw").getChannel();
-        } catch (FileNotFoundException e) {
+            this.fileChannel =  // new RandomAccessFile(Constants.filePath, "rw").getChannel();
+                    FileChannel.open(Paths.get(Constants.filePath),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.READ,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE);
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        for (int i = 0; i < Constants.blockNumber; i++) {
-            Block block = new Block(ByteBuffer.allocateDirect(Constants.blockSize));
-            blockArrayList.add(block);
-            blocksPool.add(block);
+
+
+        for (int i = 0; i < blockNumber; i++) {
+            RDPBlock rdpBlock = new RDPBlock(ByteBuffer.allocateDirect((int) Constants.blockSize));
+            rdpBlockArrayList.add(rdpBlock);
+            rdpBlocksPool.add(rdpBlock);
+        }
+
+        int step = 1;
+
+        for (int i = 0; i < step; i++) {
+            new Thread(new Flusher(i, step)).start();
         }
     }
 
-    AtomicInteger currentBlockId = new AtomicInteger();
+    ThreadLocal<RDPBlock> rdpBlockThreadLocal = new ThreadLocal<>();
 
-    Block acquire() {
-        Block block;
-        while ((block = blocksPool.poll()) == null) ;
-        block.blockId = currentBlockId.getAndIncrement();
-        return block;
-    }
+    AtomicLong currentFilePosition = new AtomicLong();
 
     AtomicBoolean inReadStage = new AtomicBoolean(false);
-    AtomicInteger readBlock = new AtomicInteger(0);
 
-    Block getBlockById(int blockId) {
-        Block block = readCache.get(blockId);
+    ByteBuffer acquireQueueBuffer(int queueId) {
+        RDPBlock rdpBlock = rdpBlockThreadLocal.get();
+        ByteBuffer queueBuffer;
+        if (rdpBlock == null || (queueBuffer = rdpBlock.acquireQueueBuffer(queueId)) == null) {
+            while ((rdpBlock = rdpBlocksPool.poll()) == null) {
+            }
+            rdpBlock.blockPositionInFile = currentFilePosition.getAndAdd(Constants.blockSize);
+            queueBuffer = rdpBlock.acquireQueueBuffer(queueId);
+            rdpBlockThreadLocal.set(rdpBlock);
+        }
+        return queueBuffer;
+    }
+
+    Cache<Integer, RDPBlock> readCache = Caffeine.newBuilder()
+            .removalListener((Integer key, RDPBlock block, RemovalCause cause) -> {
+                block.rdpBuffer.clear();
+                while (!rdpBlocksPool.offer(block)) ;
+            })
+            .expireAfterAccess(1, TimeUnit.SECONDS)
+            .maximumSize(blockNumber / 2)
+            .softValues()
+            .build();
+
+    ArrayList<byte[]> getMessagesInBlock(long blockId, int offsetInBlock, int msgOffsetInBlock, int num) {
+        RDPBlock block = readCache.getIfPresent(blockId);
         if (block == null) {
-            while ((block = blocksPool.poll()) == null) ;
+            while ((block = rdpBlocksPool.poll()) == null) {
+                System.out.println("run out of block.");
+            }
+            long filePosition = blockId *  Constants.blockSize;
             try {
-                block.blockBuffer.clear();
-                fileChannel.read(block.blockBuffer, (long) blockId * Constants.blockSize);
-                block.blockId = blockId;
-                block.blockBuffer.clear();
-                block.reloadDataFromBlock();
+                block.rdpBuffer.clear();
+                fileChannel.read(block.rdpBuffer, filePosition);
+                readCache.put((int) blockId, block);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return block;
+        ByteBuffer bb = block.rdpBuffer.duplicate();
+        bb.position(offsetInBlock);
+        for (int i = 0; i < msgOffsetInBlock; i++) {
+            int length = bb.get();
+            bb.position(bb.position() + length);
+        }
+        ArrayList<byte[]> messages = new ArrayList<>();
+        for (int i = 0; i < num; i++) {
+            int length = bb.get();
+            if (length != 0) {
+                byte[] msg = new byte[length];
+                bb.get(msg);
+                messages.add(msg);
+            }
+        }
+        return messages;
     }
 
-    static  AtomicBoolean needWrite = new AtomicBoolean(true);
+    class Flusher implements Runnable {
 
-    class FlushTask implements Runnable {
         private int id;
         private int step;
 
-        FlushTask(int id, int step) {
+        public Flusher(int id, int step) {
             this.id = id;
             this.step = step;
         }
 
-        boolean firstRead = true;
+        void flushFullRdpBlocks() {
+            for (int i = id; i < rdpBlockArrayList.size(); i += step) {
+                RDPBlock rdpBlock = rdpBlockArrayList.get(i);
+                if (rdpBlock.isFull()) {
+                    rdpBlock.rdpBuffer.clear();
+                    try {
+                        fileChannel.write(rdpBlock.rdpBuffer, rdpBlock.blockPositionInFile);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    rdpBlock.resetState();
+                    while (!rdpBlocksPool.offer(rdpBlock)) {
+                    }
+                }
+            }
+        }
+
+        void flushDirtyRdpBlocks() {
+            for (int i = id; i < rdpBlockArrayList.size(); i += step) {
+                RDPBlock rdpBlock = rdpBlockArrayList.get(i);
+                if (rdpBlock.blockPositionInFile > -1) {
+                    rdpBlock.rdpBuffer.clear();
+                    try {
+                        fileChannel.write(rdpBlock.rdpBuffer, rdpBlock.blockPositionInFile);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    rdpBlock.resetState();
+                    while (!rdpBlocksPool.offer(rdpBlock)) {
+                    }
+                }
+            }
+        }
+
 
         @Override
         public void run() {
             while (true) {
                 if (inReadStage.get()) {
-                    if(firstRead) {
-                        firstRead = false;
-                        findFullBlockAndWrite();
-                    }
-                    preReadBlock();
+                    flushDirtyRdpBlocks();
+                    return;
                 } else {
-                    findFullBlockAndWrite();
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-
-        private void preReadBlock() {
-            Block block;
-            while ((block = blocksPool.poll()) == null) ;
-            try {
-                int blockId = readBlock.getAndIncrement();
-                block.blockBuffer.clear();
-                fileChannel.read(block.blockBuffer, (long) blockId * Constants.blockSize);
-                block.reloadDataFromBlock();
-                block.blockId = blockId;
-                readCache.put(blockId, block);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        void findBlockAndWrite() {
-             for (int i = id; i < blockArrayList.size(); i += step) {
-                Block block = blockArrayList.get(i);
-                if (block.currentPosition > 0) {
-                    block.blockBuffer.clear();
-                    try {
-                        long position = (long) block.blockId * Constants.blockSize;
-                        fileChannel.write(block.blockBuffer, position);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    block.resetState();
-                    while (!blocksPool.offer(block)) ;
-                }
-            }
-        }
-
-        private void findFullBlockAndWrite() {
-            for (int i = id; i < blockArrayList.size(); i += step) {
-                Block block = blockArrayList.get(i);
-                if (block.isFull()) {
-                    block.blockBuffer.clear();
-                    try {
-                        long position = (long) block.blockId * Constants.blockSize;
-                        fileChannel.write(block.blockBuffer, position);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    block.resetState();
-                    while (!blocksPool.offer(block)) ;
+                    flushFullRdpBlocks();
                 }
             }
         }
     }
-
-    void start() {
-        int step = 4;
-        for (int n = 0; n < step; n++) {
-            new Thread(new FlushTask(n, step)).start();
-        }
-    }
-
 }

@@ -7,73 +7,59 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RDPQueue {
 
     int queueId;
+    FileManager fileManager;
     ByteBuffer byteBuffer;
-    Block lastBlock;
 
-    static FileManager fileManager = new FileManager();
-
-    static {
-        fileManager.start();
-    }
-
-    static ThreadLocal<Block> blockThreadLocal = ThreadLocal.withInitial(fileManager::acquire);
-
-
-    public RDPQueue(int queueId) {
+    public RDPQueue(int queueId, FileManager fileManager) {
         this.queueId = queueId;
-        updateToNewByteBuffer();
+        this.fileManager = fileManager;
+        this.byteBuffer = fileManager.acquireQueueBuffer(queueId);
     }
 
-    AtomicInteger msgCount = new AtomicInteger();
-
-    void updateToNewByteBuffer() {
-        this.lastBlock = blockThreadLocal.get();
-        this.byteBuffer = lastBlock.acquire(queueId);
-        while (byteBuffer == null) {
-            Block newBlock = fileManager.acquire();
-            this.lastBlock = newBlock;
-            this.byteBuffer = newBlock.acquire(queueId);
-            blockThreadLocal.set(newBlock);
-        }
-    }
+    AtomicInteger msgCounter = new AtomicInteger();
 
     void add(byte[] msg) {
-        if (byteBuffer.remaining() < msg.length + 4 || msgCount.incrementAndGet() % Constants.msgBatch == 0) {
-            byteBuffer.position(byteBuffer.capacity());
-            lastBlock.notifyFull();
-            updateToNewByteBuffer();
-        }
         byteBuffer.put((byte) msg.length);
         byteBuffer.put(msg);
+        if(msgCounter.incrementAndGet() % 20 == 0) {
+            flush();
+        }
     }
 
-    private boolean firstGet = true;
+    private void flush() {
+        byteBuffer.position(byteBuffer.capacity());
+        byteBuffer = fileManager.acquireQueueBuffer(queueId);
+    }
 
-    static AtomicInteger got = new AtomicInteger();
+    boolean firstGet = true;
 
-    ArrayList<byte[]> getMessages(long offset, long num) {
-        if (firstGet) {
+    ArrayList<byte[]> getMessages(int offset, int num) {
+        if(firstGet) {
             firstGet = false;
-            fileManager.inReadStage.set(true);
-            if (got.incrementAndGet() == DefaultQueueStoreImpl.queueMap.size()) {
-                FileManager.needWrite.set(true);
-            }
             byteBuffer.position(byteBuffer.capacity());
-            lastBlock.notifyFull();
+            fileManager.inReadStage.set(true);
         }
-        return findBlockByOffsetAndNumber((int) offset, (int) num);
+        return findMessagesInBlockByOffsetAndNumber(offset, num);
     }
 
-    ArrayList<byte[]> findBlockByOffsetAndNumber(int offset, int num) {
-        int index = offset / Constants.msgBatch;
-        long filePosition = Block.indexMap.get(queueId).get(index);
-        int blockId = (int) (filePosition / Constants.blockSize);
-        int bufferPosition = (int) (filePosition % Constants.blockSize / Constants.bufferSize);
+    ArrayList<byte[]> findMessagesInBlockByOffsetAndNumber(int offset, int num) {
+        int start = offset / Constants.msgBatch; //在索引中的位置;
+        int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
         int offsetInBuffer = offset % Constants.msgBatch;
-        if(bufferPosition < 0) {
-            System.out.println("strange");
+        if (start == end) {
+            return getMessages(start, num, offsetInBuffer);
+        } else {
+            ArrayList<byte[]> messages = getMessages(start,  end * Constants.msgBatch - offset, offsetInBuffer);
+            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch, 0));
+            return messages;
         }
-        return fileManager.getBlockById(blockId).getMessages(bufferPosition, offsetInBuffer, num);
+    }
+
+    private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
+        long filePosition = RDPBlock.rdpQueueIndexes.get(queueId).get(indexPosition);
+        long bufferPosition = (filePosition % Constants.blockSize );
+        long blockId =  (filePosition / Constants.blockSize);
+        return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
     }
 
 

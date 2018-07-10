@@ -1,8 +1,7 @@
-package io.openmessaging.utils;
+package io.openmessaging;
 
-import io.openmessaging.Block;
+import io.openmessaging.RDPBlock;
 import io.openmessaging.FileManager;
-import sun.nio.ch.DirectBuffer;
 
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
@@ -19,8 +18,10 @@ public class LRUCache < K, V > extends LinkedHashMap < K, V > {
     protected boolean removeEldestEntry(Entry entry) {
         boolean b = size() > this.capacity;
         if(b) {
-            if(entry.getValue() instanceof Block) {
-                while (!FileManager.blocksPool.offer((Block) entry.getValue()));
+            if(entry.getValue() instanceof RDPBlock) {
+                RDPBlock block = (RDPBlock) entry.getValue();
+                block.resetState();
+                while (!FileManager.rdpBlocksPool.offer(block));
             }
         }
         return b;

@@ -19,9 +19,11 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     AtomicInteger queueId = new AtomicInteger();
 
+    FileManager fileManager = new FileManager();
+
     public void put(String queueName, byte[] message) {
         if (!queueMap.containsKey(queueName)) {
-            queueMap.put(queueName, new RDPQueue(queueId.getAndIncrement()));
+            queueMap.put(queueName, new RDPQueue(queueId.getAndIncrement(), fileManager));
         }
         queueMap.get(queueName).add(message);
     }
@@ -29,6 +31,6 @@ public class DefaultQueueStoreImpl extends QueueStore {
         if (!queueMap.containsKey(queueName)) {
             return EMPTY;
         }
-        return queueMap.get(queueName).getMessages(offset, num);
+        return queueMap.get(queueName).getMessages((int)offset, (int) num);
     }
 }
