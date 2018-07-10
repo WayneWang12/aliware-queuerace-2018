@@ -25,12 +25,12 @@ public class FileManager {
     FileManager() {
         this.rdpBlockArrayList = new ArrayList<>();
         try {
-            this.fileChannel =  // new RandomAccessFile(Constants.filePath, "rw").getChannel();
-                    FileChannel.open(Paths.get(Constants.filePath),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.READ,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
+            this.fileChannel =  new RandomAccessFile(Constants.filePath, "rw").getChannel();
+//                    FileChannel.open(Paths.get(Constants.filePath),
+//                    StandardOpenOption.CREATE,
+//                    StandardOpenOption.READ,
+//                    StandardOpenOption.WRITE,
+//                    StandardOpenOption.DELETE_ON_CLOSE);
         } catch (IOException e) {
             e.printStackTrace();
         }
