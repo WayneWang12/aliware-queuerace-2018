@@ -162,6 +162,7 @@ public class FileManager {
                 if (inReadStage.get()) {
                     flushDirtyRdpBlocks();
                     System.out.println("flush task " + id + " completed.");
+                    return;
                 } else {
                     flushFullRdpBlocks();
                 }
