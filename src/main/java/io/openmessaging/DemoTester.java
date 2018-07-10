@@ -195,7 +195,8 @@ public class DemoTester {
                     String queueName = "Queue-" + random.nextInt(queueCounter.size());
                     int index = random.nextInt(queueCounter.get(queueName).get()) - 10;
                     if (index < 0) index = 0;
-                    Collection<byte[]> msgs = queueStore.get(queueName, index, 20);
+                    if (index >= 180) index = 0;
+                    Collection<byte[]> msgs = queueStore.get(queueName, index, 10);
                     if(msgs.size() == 0) {
                         System.out.println("no msg!");
                         System.exit(-1);
@@ -269,8 +270,11 @@ public class DemoTester {
                                 String msgToConsume = new String(msg, msgPrefixLength, msg.length - msgPrefixLength);
                                 String expectedMsg = String.valueOf(index++);
                                 if (!msgToConsume.equals(expectedMsg)) {
-                                    System.out.println("Check error, expected " + expectedMsg + ", actual " + msgToConsume);
-//                                    System.exit(-1);
+                                    System.out.println(queueName + "Check error, expected " + expectedMsg + ", actual " + msgToConsume);
+                                    for(byte[] m:msgs) {
+                                        System.out.println(new String(m));
+                                    }
+                                    System.exit(-1);
                                 } else {
                                     long c = consumerCount.getAndIncrement();
                                     if (c % 10000000 == 0) {

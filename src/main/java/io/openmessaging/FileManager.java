@@ -139,9 +139,9 @@ public class FileManager {
         }
 
         void flushDirtyRdpBlocks() {
-            for (int i = id; i < rdpBlockArrayList.size(); i += step) {
+           for (int i = id; i < rdpBlockArrayList.size(); i += step) {
                 RDPBlock rdpBlock = rdpBlockArrayList.get(i);
-                if (rdpBlock.blockPositionInFile > -1) {
+                if (rdpBlock.blockPositionInFile != -1) {
                     rdpBlock.rdpBuffer.clear();
                     try {
                         fileChannel.write(rdpBlock.rdpBuffer, rdpBlock.blockPositionInFile);
@@ -161,7 +161,7 @@ public class FileManager {
             while (true) {
                 if (inReadStage.get()) {
                     flushDirtyRdpBlocks();
-                    return;
+                    System.out.println("flush task " + id + " completed.");
                 } else {
                     flushFullRdpBlocks();
                 }

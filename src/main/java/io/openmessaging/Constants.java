@@ -9,5 +9,5 @@ public interface Constants {
     long blockSize = 64 * 1024;
     long MAX_DIRECT_BUFFER_SIZE = 3 * 1024 * 1024 * 1024l;
     String filePath = "/alidata1/race2018/data/rdp";
-    List<byte[]> EMPTY = new ArrayList<>();
+    ArrayList<byte[]> EMPTY = new ArrayList<>();
 }
