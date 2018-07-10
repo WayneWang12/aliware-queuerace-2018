@@ -71,6 +71,10 @@ public class FileManager {
             }
         }
 
+        private void preReadBlock() {
+
+        }
+
         private void findFullBlockAndWrite() {
             for (int i = id; i < blockArrayList.size(); i += step) {
                 Block block = blockArrayList.get(i);
@@ -89,7 +93,7 @@ public class FileManager {
     }
 
     void start() {
-        for (int n = 0; n < 4; n++) {
+        for (int n = 0; n < 1; n++) {
             new Thread(new FlushTask(n, 4)).start();
         }
     }
