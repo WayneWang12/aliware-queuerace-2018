@@ -18,7 +18,6 @@ public class FileManager {
     FileChannel fileChannel;
     ArrayList<RDPBlock> rdpBlockArrayList;
     static ConcurrentLinkedQueue<RDPBlock> rdpBlocksPool = new ConcurrentLinkedQueue<>();
-    static ConcurrentLinkedQueue<Integer> blockIds = new ConcurrentLinkedQueue<>();
     long blockNumber = Constants.MAX_DIRECT_BUFFER_SIZE / Constants.blockSize;
 
     FileManager() {
@@ -160,18 +159,14 @@ public class FileManager {
             }
         }
 
-        boolean firstRead = true;
-
         @Override
         public void run() {
             while (true) {
                 if (inReadStage.get()) {
-                    if (firstRead) {
-                        firstRead = false;
-                        flushDirtyRdpBlocks();
-                        WriteDone = true;
-                        System.out.println("flush task " + id + " completed.");
-                    }
+                    flushDirtyRdpBlocks();
+                    WriteDone = true;
+                    System.out.println("flush task " + id + " completed.");
+                    return;
                 } else {
                     flushFullRdpBlocks();
                 }

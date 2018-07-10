@@ -15,8 +15,6 @@ public class DefaultQueueStoreImpl extends QueueStore {
     private static final String PRE = "Queue-";
     FileManager fileManager = new FileManager();
 
-    static ExecutorService executorService ;
-
     {
         for (int i = 0; i < queueMap.length; i++) {
             queueMap[i] = new RDPQueue(fileManager);
@@ -38,9 +36,6 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
         if (!fileManager.WriteDone) {
             synchronized (lock) {
-                if(executorService == null) {
-                    executorService = Executors.newFixedThreadPool(20);
-                }
                 fileManager.inReadStage.set(true);
                 while (!fileManager.WriteDone) {
                     try {

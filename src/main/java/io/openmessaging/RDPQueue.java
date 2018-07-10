@@ -2,6 +2,7 @@ package io.openmessaging;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -43,7 +44,9 @@ public class RDPQueue {
 
 
     ArrayList<byte[]> getMessages(int offset, int num) {
-        ArrayList<byte[]> messages = new ArrayList<>();
+        if(offset >= queueSize) {
+            return Constants.EMPTY;
+        }
         return findMessagesInBlockByOffsetAndNumber(offset, num);
     }
 
@@ -66,13 +69,6 @@ public class RDPQueue {
             long filePosition = indexes[indexPosition];
             long bufferPosition = (filePosition % Constants.blockSize);
             long blockId = (filePosition / Constants.blockSize);
-            if(fileManager.readCache.getIfPresent(blockId) == null && indexPosition == 0) {
-                for(int i = indexPosition; i < currentIndex; i++) {
-                    long fp = indexes[i];
-                    long bid = (fp / Constants.blockSize);
-                    DefaultQueueStoreImpl.executorService.submit(() -> fileManager.getBlockDirty((int) bid));
-                }
-            }
             return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
         } else {
             return Constants.EMPTY;
