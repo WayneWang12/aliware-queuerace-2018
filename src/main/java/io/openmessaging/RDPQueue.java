@@ -76,6 +76,7 @@ public class RDPQueue {
         for (int i = 0; i < num; i++) {
             resultCache.fileReader.get(resultCache.results.next());
         }
+        resultCache.fileReader.clear();
     }
 
 //    ArrayList<byte[]> findMessagesInBlockByOffsetAndNumber(int offset, int num) {

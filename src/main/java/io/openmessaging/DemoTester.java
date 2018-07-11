@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 //该评测程序主要便于选手在本地优化和调试自己的程序
 
 public class DemoTester {
-    private static final String messagePre = "qwertyuiopasdfghjklzxcqwertyuiopasxcv154gfd848gfd848werty";
+    private static final String messagePre = "abcdefghijklmnopqrstuvwxyz123456abcdefghijklmnopqrstuvwxyz";
 
     private static long sendStartTimestamp;
     private static long checkStartTimestamp;
@@ -151,7 +151,8 @@ public class DemoTester {
                     String queueName = "Queue-" + count % queueCounter.size();
                     synchronized (queueCounter.get(queueName)) {
                         int messageIndex = queueCounter.get(queueName).getAndIncrement();
-                        String message = messagePre + messageIndex % 10;
+                        String number = String.valueOf(messageIndex);
+                        String message = messagePre.substring(0, messagePre.length() - number.length()) + number;
                         queueStore.put(queueName, message.getBytes());
                         long c = producerCount.getAndIncrement();
                         if (c % 10000000 == 0) {
@@ -197,12 +198,13 @@ public class DemoTester {
                     if (index < 0) index = 0;
                     Collection<byte[]> msgs = queueStore.get(queueName, index, 10);
                     for (byte[] msg : msgs) {
-                        if (!new String(msg).substring(0, 50).equals(messagePre.substring(0, 50))) {
-                            System.err.println("IndexChecker Check error ？ "
+                        String msgToCheck = new String(msg);
+                        String expectedMsg = String.valueOf(index++);
+                        if (!msgToCheck.endsWith(expectedMsg)) {
+                            System.out.println("IndexChecker Check error ？ "
                                     + " " + queueName + " "
                                     + new String(msg)
                                     + " : " + (messagePre + String.valueOf(index - 1)));
-                            System.out.println("以正确检验的次数：" + counter);
                             System.exit(-1);
                         }
                     }
@@ -251,8 +253,10 @@ public class DemoTester {
                         if (msgs != null && msgs.size() > 0) {
                             pullOffsets.get(queueName).getAndAdd(msgs.size());
                             for (byte[] msg : msgs) {
-                                if (!new String(msg).substring(0, 50).equals(messagePre.substring(0, 50))) {
-                                    System.err.println("Consumer Check error ？ " + queueName);
+                                String msgToCheck = new String(msg);
+                                String expectedMsg = String.valueOf(index++);
+                                if (!msgToCheck.endsWith(expectedMsg)) {
+                                    System.out.println("Consumer Check error ？ " + queueName);
                                     System.exit(-1);
                                 }
                             }
