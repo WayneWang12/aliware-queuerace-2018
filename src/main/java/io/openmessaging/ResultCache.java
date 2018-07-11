@@ -1,8 +1,6 @@
 package io.openmessaging;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
 
 public class ResultCache {
 
