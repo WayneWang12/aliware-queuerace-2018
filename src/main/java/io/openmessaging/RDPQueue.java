@@ -52,23 +52,17 @@ public class RDPQueue {
     }
 
     void fillResultWithMessages(ResultCache resultCache, int offset, int num) {
-        if (offset >= queueSize) {
-            return;
-        }
         int start = offset / Constants.msgBatch; //在索引中的位置;
-        if(start >= currentIndex) {
-            return;
-        }
         int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
-        if(end >= currentIndex) {
-            return;
-        }
         int offsetInBuffer = offset % Constants.msgBatch; //消息在buffer中的位置；
+        int secondOffsetEnd = (offset + num) % Constants.msgBatch; //最后一条消息在索引中的位置；
         if (start == end) {
             fillResultInABlock(resultCache, indexes[start], offsetInBuffer, num);
         } else {
             fillResultInABlock(resultCache, indexes[start], offsetInBuffer, end * Constants.msgBatch - offset);
-            fillResultInABlock(resultCache, indexes[end], 0, offset + num - end * Constants.msgSize);
+            if(end < currentIndex) {
+                fillResultInABlock(resultCache, indexes[end], 0, secondOffsetEnd);
+            }
         }
     }
 

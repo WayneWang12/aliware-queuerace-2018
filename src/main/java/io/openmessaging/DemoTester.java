@@ -256,16 +256,19 @@ public class DemoTester {
                                     System.exit(-1);
                                 }
                             }
-                            long c = consumerCount.getAndIncrement();
-                            if (c % 10000000 == 0) {
-                                System.out.println(c + " messages consumed. time " + (System.currentTimeMillis() - consumeStartTimestamp) + "ms");
-                            }
-
                             counter.addAndGet(msgs.size());
+
                         }
+                        long c = consumerCount.getAndIncrement();
+                        if (c % 1000000 == 0) {
+                            System.out.println(c + " messages consumed. time " + (System.currentTimeMillis() - consumeStartTimestamp) + "ms");
+                        }
+
                         if (msgs == null || msgs.size() < 10) {
-                            if (pullOffsets.get(queueName).get() != offsets.get(queueName).get()) {
-                                System.err.println("Consumer Queue Number Error " + queueName);
+                            int consumed = pullOffsets.get(queueName).get();
+                            int expected = offsets.get(queueName).get();
+                            if (consumed != expected) {
+                                System.out.println(queueName + " Number Error, Consumed " + consumed + ", expected" + expected);
                                 System.exit(-1);
                             }
                             pullOffsets.remove(queueName);
