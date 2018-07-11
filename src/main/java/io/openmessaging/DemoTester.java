@@ -258,7 +258,7 @@ public class DemoTester {
                                 if (!msgToCheck.endsWith(expectedMsg)) {
                                     System.out.println("Consumer Check error ？ "
                                             + queueName + " expected " + expectedMsg + " actually " + msgToCheck);
-//                                    System.exit(-1);
+                                    System.exit(-1);
                                 }
                             }
                             counter.addAndGet(msgs.size());

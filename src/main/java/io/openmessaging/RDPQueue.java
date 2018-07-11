@@ -95,7 +95,7 @@ public class RDPQueue {
                     }
                 }
             })
-            .maximumSize(49142)
+            .maximumSize(49000) //49152
             .build();
 
     void fillResultFromBlockCache(ResultCache resultCache, int offset, int num)  {
