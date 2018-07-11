@@ -38,11 +38,11 @@ public class RDPQueue {
     static ThreadLocal<ResultCache> resultCacheThreadLocal = new ThreadLocal<>();
 
     Collection<byte[]> getMessages(int offset, int num) {
-        if(offset >= queueSize) {
+        if (offset >= queueSize) {
             return Constants.EMPTY;
         }
         ResultCache resultCache = resultCacheThreadLocal.get();
-        if(resultCache == null) {
+        if (resultCache == null) {
             resultCache = new ResultCache();
             resultCacheThreadLocal.set(resultCache);
         }
@@ -52,16 +52,22 @@ public class RDPQueue {
     }
 
     void fillResultWithMessages(ResultCache resultCache, int offset, int num) {
-        if(offset >= queueSize) {
+        if (offset >= queueSize) {
             return;
         }
         int start = offset / Constants.msgBatch; //在索引中的位置;
+        if(start >= currentIndex) {
+            return;
+        }
         int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
-        int offsetInBuffer = offset % Constants.msgBatch;
+        if(end >= currentIndex) {
+            return;
+        }
+        int offsetInBuffer = offset % Constants.msgBatch; //消息在buffer中的位置；
         if (start == end) {
             fillResultInABlock(resultCache, indexes[start], offsetInBuffer, num);
         } else {
-            fillResultInABlock(resultCache, indexes[start], end * Constants.msgBatch - offset, num);
+            fillResultInABlock(resultCache, indexes[start], offsetInBuffer, end * Constants.msgBatch - offset);
             fillResultInABlock(resultCache, indexes[end], 0, offset + num - end * Constants.msgSize);
         }
     }
@@ -73,7 +79,7 @@ public class RDPQueue {
             e.printStackTrace();
         }
         resultCache.fileReader.position(offset * Constants.msgSize);
-        for(int i = 0; i < num; i ++) {
+        for (int i = 0; i < num; i++) {
             resultCache.fileReader.get(resultCache.results.next());
         }
     }

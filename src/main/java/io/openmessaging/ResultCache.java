@@ -14,7 +14,7 @@ public class ResultCache {
         results.clear();
     }
 
-    ByteBuffer fileReader = ByteBuffer.allocate((int) Constants.bufferSize);
+    ByteBuffer fileReader = ByteBuffer.allocateDirect((int) Constants.bufferSize);
 
     void clear() {
         results.clear();
