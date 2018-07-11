@@ -52,7 +52,7 @@ public class RDPQueue {
         }
         resultCache.clear();
         if(isSequentially) {
-
+            fillResultFromBlockCache(resultCache, offset, num);
         } else {
             fillResultWithMessages(resultCache, offset, num);
         }
@@ -65,16 +65,16 @@ public class RDPQueue {
         int offsetInBuffer = offset % Constants.msgBatch; //消息在buffer中的位置；
         int secondOffsetEnd = (offset + num) % Constants.msgBatch; //最后一条消息在索引中的位置；
         if (start == end) {
-            fillResultInABlock(resultCache, indexes[start], offsetInBuffer, num);
+            fillResultDirectlyFromFile(resultCache, indexes[start], offsetInBuffer, num);
         } else {
-            fillResultInABlock(resultCache, indexes[start], offsetInBuffer, end * Constants.msgBatch - offset);
+            fillResultDirectlyFromFile(resultCache, indexes[start], offsetInBuffer, end * Constants.msgBatch - offset);
             if(end < currentIndex) {
-                fillResultInABlock(resultCache, indexes[end], 0, secondOffsetEnd);
+                fillResultDirectlyFromFile(resultCache, indexes[end], 0, secondOffsetEnd);
             }
         }
     }
 
-    void fillResultInABlock(ResultCache resultCache, long positionInFile, int offset, int num) {
+    void fillResultDirectlyFromFile(ResultCache resultCache, long positionInFile, int offset, int num) {
         try {
             fileManager.fileChannel.read(resultCache.fileReader, positionInFile);
         } catch (IOException e) {
@@ -87,7 +87,7 @@ public class RDPQueue {
         resultCache.fileReader.clear();
     }
 
-    static Cache<Integer, RDPBlock> cache = Caffeine.newBuilder()
+    static Cache<Integer, RDPBlock> blockCache = Caffeine.newBuilder()
             .removalListener((Integer key, RDPBlock block, RemovalCause cause) -> {
                 if(block != null) {
                     block.rdpBuffer.clear();
@@ -98,8 +98,28 @@ public class RDPQueue {
             .maximumSize(1600)
             .build();
 
-    void fillResultUsingBlockAndCache(ResultCache resultCache, int offset, int num)  {
+    void fillResultFromBlockCache(ResultCache resultCache, int offset, int num)  {
+        int index = offset / Constants.msgBatch; //在索引中的位置;
+        int offsetInBuffer = offset % Constants.msgBatch; //消息在buffer中的位置；
+        long filePosition = indexes[index];
+        int blockId = (int) (filePosition / Constants.blockSize);
+        RDPBlock block = getBlock(blockId);
+        int positionInBuffer = (int) (filePosition % Constants.blockSize);
+        ByteBuffer bb = block.rdpBuffer.duplicate();
+        bb.position(positionInBuffer + offsetInBuffer * Constants.msgSize);
+        for (int i = 0; i < num; i++) {
+            bb.get(resultCache.results.next());
+        }
+    }
 
+    private RDPBlock getBlock(int blockId) {
+        RDPBlock block = blockCache.getIfPresent(blockId);
+        if(block == null) {
+            while ((block = FileManager.rdpBlocksPool.poll()) == null){
+            }
+            blockCache.put(blockId, block);
+        }
+        return block;
     }
 
 

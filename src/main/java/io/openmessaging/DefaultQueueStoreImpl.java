@@ -51,9 +51,9 @@ public class DefaultQueueStoreImpl extends QueueStore {
         }
         if(consumeCounter.get() <= Constants.indexCheckNumber) {
             consumeCounter.getAndIncrement();
-            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
+            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num, false);
         } else {
-            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
+            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num, true);
         }
 
     }
