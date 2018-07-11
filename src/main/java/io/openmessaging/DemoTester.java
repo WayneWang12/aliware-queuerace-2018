@@ -30,7 +30,7 @@ public class DemoTester {
         //队列的数量
         int queueNum = 1000000;
         //正确性检测的次数
-        int checkNum = 1000000;
+        int checkNum = Constants.indexCheckNumber;
         //消费阶段的总队列数量
         int checkQueueNum = 100000;
         //发送的线程数量
@@ -203,8 +203,8 @@ public class DemoTester {
                         if (!msgToCheck.endsWith(expectedMsg)) {
                             System.out.println("IndexChecker Check error ？ "
                                     + " " + queueName + " "
-                                    + new String(msg)
-                                    + " : " + (messagePre + String.valueOf(index - 1)));
+                                    + msgToCheck
+                                    + " : " + expectedMsg);
                             System.exit(-1);
                         }
                     }
@@ -256,8 +256,9 @@ public class DemoTester {
                                 String msgToCheck = new String(msg);
                                 String expectedMsg = String.valueOf(index++);
                                 if (!msgToCheck.endsWith(expectedMsg)) {
-                                    System.out.println("Consumer Check error ？ " + queueName);
-                                    System.exit(-1);
+                                    System.out.println("Consumer Check error ？ "
+                                            + queueName + " expected " + expectedMsg + " actually " + msgToCheck);
+//                                    System.exit(-1);
                                 }
                             }
                             counter.addAndGet(msgs.size());

@@ -117,6 +117,13 @@ public class RDPQueue {
         if(block == null) {
             while ((block = FileManager.rdpBlocksPool.poll()) == null){
             }
+            try {
+                block.rdpBuffer.clear();
+                fileManager.fileChannel.read(block.rdpBuffer, (long) blockId * Constants.blockSize);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            block.rdpBuffer.clear();
             blockCache.put(blockId, block);
         }
         return block;
