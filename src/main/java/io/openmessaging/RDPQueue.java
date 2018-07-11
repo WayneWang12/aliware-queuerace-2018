@@ -1,5 +1,9 @@
 package io.openmessaging;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -37,7 +41,7 @@ public class RDPQueue {
 
     static ThreadLocal<ResultCache> resultCacheThreadLocal = new ThreadLocal<>();
 
-    Collection<byte[]> getMessages(int offset, int num) {
+    Collection<byte[]> getMessages(int offset, int num, boolean isSequentially) {
         if (offset >= queueSize) {
             return Constants.EMPTY;
         }
@@ -47,7 +51,11 @@ public class RDPQueue {
             resultCacheThreadLocal.set(resultCache);
         }
         resultCache.clear();
-        fillResultWithMessages(resultCache, offset, num);
+        if(isSequentially) {
+
+        } else {
+            fillResultWithMessages(resultCache, offset, num);
+        }
         return resultCache.results;
     }
 
@@ -79,30 +87,20 @@ public class RDPQueue {
         resultCache.fileReader.clear();
     }
 
-//    ArrayList<byte[]> findMessagesInBlockByOffsetAndNumber(int offset, int num) {
-//        int start = offset / Constants.msgBatch; //在索引中的位置;
-//        int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
-//        int offsetInBuffer = offset % Constants.msgBatch;
-//        if (start == end) {
-//            return getMessages(start, num, offsetInBuffer);
-//        } else {
-//            ArrayList<byte[]> messages = getMessages(start, end * Constants.msgBatch - offset, offsetInBuffer);
-//            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch, 0));
-//            return messages;
-//        }
-//    }
-//
-//
-//    private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
-//        if (indexPosition < indexes.length) {
-//            long filePosition = indexes[indexPosition];
-//            long bufferPosition = (filePosition % Constants.blockSize);
-//            long blockId = (filePosition / Constants.blockSize);
-//            return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
-//        } else {
-//            return Constants.EMPTY;
-//        }
-//    }
+    static Cache<Integer, RDPBlock> cache = Caffeine.newBuilder()
+            .removalListener((Integer key, RDPBlock block, RemovalCause cause) -> {
+                if(block != null) {
+                    block.rdpBuffer.clear();
+                    while (!FileManager.rdpBlocksPool.offer(block)){
+                    }
+                }
+            })
+            .maximumSize(1600)
+            .build();
+
+    void fillResultUsingBlockAndCache(ResultCache resultCache, int offset, int num)  {
+
+    }
 
 
 }

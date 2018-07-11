@@ -3,6 +3,7 @@ package io.openmessaging;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 这是一个简单的基于内存的实现，以方便选手理解题意；
@@ -32,6 +33,8 @@ public class DefaultQueueStoreImpl extends QueueStore {
 
     private static Object lock = new Object();
 
+    AtomicInteger consumeCounter = new AtomicInteger();
+
     public Collection<byte[]> get(String queueName, long offset, long num) {
 
         if (!fileManager.WriteDone) {
@@ -46,7 +49,12 @@ public class DefaultQueueStoreImpl extends QueueStore {
                 }
             }
         }
+        if(consumeCounter.get() <= Constants.indexCheckNumber) {
+            consumeCounter.getAndIncrement();
+            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
+        } else {
+            return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
+        }
 
-        return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num);
     }
 }
