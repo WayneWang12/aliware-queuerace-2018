@@ -34,7 +34,7 @@ public class FileManager {
             rdpBlocksPool.add(rdpBlock);
         }
 
-        int step = 4;
+        int step = 1;
 
         for (int i = 0; i < step; i++) {
             new Thread(new Flusher(i, step)).start();

@@ -1,7 +1,9 @@
 package io.openmessaging;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,55 +27,85 @@ public class RDPQueue {
         this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
-    AtomicInteger msgCounter = new AtomicInteger();
 
     void add(byte[] msg) {
-        byteBuffer.put((byte) msg.length);
         byteBuffer.put(msg);
-        int msgCount = msgCounter.incrementAndGet();
-        if (msgCount % 20 == 0) {
+        if (++queueSize % 20 == 0) {
             flush();
         }
-        queueSize++;
     }
 
     private void flush() {
-        byteBuffer.position(byteBuffer.capacity());
         this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
 
+    static ThreadLocal<ResultCache> resultCacheThreadLocal = new ThreadLocal<>();
 
-    ArrayList<byte[]> getMessages(int offset, int num) {
+    Collection<byte[]> getMessages(int offset, int num) {
         if(offset >= queueSize) {
             return Constants.EMPTY;
         }
-        return findMessagesInBlockByOffsetAndNumber(offset, num);
+        ResultCache resultCache = resultCacheThreadLocal.get();
+        if(resultCache == null) {
+            resultCache = new ResultCache();
+            resultCacheThreadLocal.set(resultCache);
+        }
+        resultCache.clear();
+        fillResultWithMessages(resultCache, offset, num);
+        return resultCache.results;
     }
 
-    ArrayList<byte[]> findMessagesInBlockByOffsetAndNumber(int offset, int num) {
+    void fillResultWithMessages(ResultCache resultCache, int offset, int num) {
+        if(offset >= queueSize) {
+            return;
+        }
         int start = offset / Constants.msgBatch; //在索引中的位置;
         int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
         int offsetInBuffer = offset % Constants.msgBatch;
         if (start == end) {
-            return getMessages(start, num, offsetInBuffer);
+            fillResultInABlock(resultCache, indexes[start], offsetInBuffer, num);
         } else {
-            ArrayList<byte[]> messages = getMessages(start, end * Constants.msgBatch - offset, offsetInBuffer);
-            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch - 1, 0));
-            return messages;
+            fillResultInABlock(resultCache, indexes[start], end * Constants.msgBatch - offset, num);
+            fillResultInABlock(resultCache, indexes[end], 0, offset + num - end * Constants.msgSize);
         }
     }
 
-
-    private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
-        if (indexPosition < indexes.length) {
-            long filePosition = indexes[indexPosition];
-            long bufferPosition = (filePosition % Constants.blockSize);
-            long blockId = (filePosition / Constants.blockSize);
-            return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
-        } else {
-            return Constants.EMPTY;
+    void fillResultInABlock(ResultCache resultCache, long positionInFile, int offset, int num) {
+        try {
+            fileManager.fileChannel.read(resultCache.fileReader, positionInFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        resultCache.fileReader.position(offset * Constants.msgSize);
+        for(int i = 0; i < num; i ++) {
+            resultCache.fileReader.get(resultCache.results.next());
         }
     }
+
+//    ArrayList<byte[]> findMessagesInBlockByOffsetAndNumber(int offset, int num) {
+//        int start = offset / Constants.msgBatch; //在索引中的位置;
+//        int end = (offset + num) / Constants.msgBatch; //最后一条消息在索引中的位置；
+//        int offsetInBuffer = offset % Constants.msgBatch;
+//        if (start == end) {
+//            return getMessages(start, num, offsetInBuffer);
+//        } else {
+//            ArrayList<byte[]> messages = getMessages(start, end * Constants.msgBatch - offset, offsetInBuffer);
+//            messages.addAll(getMessages(end, offset + num - end * Constants.msgBatch, 0));
+//            return messages;
+//        }
+//    }
+//
+//
+//    private ArrayList<byte[]> getMessages(int indexPosition, int num, int offsetInBuffer) {
+//        if (indexPosition < indexes.length) {
+//            long filePosition = indexes[indexPosition];
+//            long bufferPosition = (filePosition % Constants.blockSize);
+//            long blockId = (filePosition / Constants.blockSize);
+//            return fileManager.getMessagesInBlock(blockId, (int) bufferPosition, offsetInBuffer, num);
+//        } else {
+//            return Constants.EMPTY;
+//        }
+//    }
 
 
 }

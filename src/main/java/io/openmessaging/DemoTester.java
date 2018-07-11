@@ -1,6 +1,5 @@
 package io.openmessaging;
 
-import java.lang.management.ManagementFactory;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Random;
@@ -13,14 +12,14 @@ import java.util.concurrent.atomic.AtomicLong;
 //该评测程序主要便于选手在本地优化和调试自己的程序
 
 public class DemoTester {
+    private static final String messagePre = "qwertyuiopasdfghjklzxcqwertyuiopasxcv154gfd848gfd848werty";
 
-    private final static String msgPrefix = "qqqqqqqqqoqqqqqqqqqoqqqqqqqqqoqqqqqqqqqo";
-    private final static int msgPrefixLength = msgPrefix.length();
     private static long sendStartTimestamp;
     private static long checkStartTimestamp;
     private static long consumeStartTimestamp;
 
     public static void main(String args[]) throws Exception {
+
         //评测相关配置
         //发送阶段的发送数量，也即发送阶段必须要在规定时间内把这些消息发送完毕方可
         int msgNum = 200000000;
@@ -38,6 +37,7 @@ public class DemoTester {
         int sendTsNum = 10;
         //消费的线程数量
         int checkTsNum = 10;
+
 
         ConcurrentMap<String, AtomicInteger> queueNumMap = new ConcurrentHashMap<>();
         for (int i = 0; i < queueNum; i++) {
@@ -79,17 +79,17 @@ public class DemoTester {
         checkStartTimestamp = indexCheckStart;
         AtomicLong indexCheckCounter = new AtomicLong(0);
         Thread[] indexChecks = new Thread[checkTsNum];
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             indexChecks[i] = new Thread(new IndexChecker(queueStore, i, maxCheckTime, checkNum, indexCheckCounter, queueNumMap));
         }
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             indexChecks[i].start();
         }
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             indexChecks[i].join();
         }
         long indexCheckEnd = System.currentTimeMillis();
-        System.out.printf("BlockInfo Check: %d ms Num:%d\n", indexCheckEnd - indexCheckStart, indexCheckCounter.get());
+        System.out.printf("Index Check: %d ms Num:%d\n", indexCheckEnd - indexCheckStart, indexCheckCounter.get());
 
         //Step3: 消费消息，并验证顺序性
         long checkStart = System.currentTimeMillis();
@@ -97,7 +97,7 @@ public class DemoTester {
         Random random = new Random();
         AtomicLong checkCounter = new AtomicLong(0);
         Thread[] checks = new Thread[checkTsNum];
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             int eachCheckQueueNum = checkQueueNum / checkTsNum;
             ConcurrentMap<String, AtomicInteger> offsets = new ConcurrentHashMap<>();
             for (int j = 0; j < eachCheckQueueNum; j++) {
@@ -109,10 +109,10 @@ public class DemoTester {
             }
             checks[i] = new Thread(new Consumer(queueStore, i, maxCheckTime, checkCounter, offsets));
         }
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             checks[i].start();
         }
-        for (int i = 0; i < sendTsNum; i++) {
+        for (int i = 0; i < checkTsNum; i++) {
             checks[i].join();
         }
         long checkEnd = System.currentTimeMillis();
@@ -146,17 +146,17 @@ public class DemoTester {
         public void run() {
             long count;
             while ((count = counter.getAndIncrement()) < maxMsgNum && System.currentTimeMillis() <= maxTimeStamp) {
+
                 try {
                     String queueName = "Queue-" + count % queueCounter.size();
                     synchronized (queueCounter.get(queueName)) {
-                        String msgToPut = msgPrefix + String.valueOf(queueCounter.get(queueName).getAndIncrement());
-                        queueStore.put(queueName, msgToPut.getBytes());
+                        int messageIndex = queueCounter.get(queueName).getAndIncrement();
+                        String message = messagePre + messageIndex % 10;
+                        queueStore.put(queueName, message.getBytes());
                         long c = producerCount.getAndIncrement();
                         if (c % 10000000 == 0) {
-                            int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-                            System.out.println(c + " messages produced. time " + (System.currentTimeMillis() - sendStartTimestamp) + "ms, threads " + threadCount);
+                            System.out.println(c + " messages produced. time " + (System.currentTimeMillis() - sendStartTimestamp) + "ms");
                         }
-
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -166,8 +166,8 @@ public class DemoTester {
         }
     }
 
-    static final String lock = "lock";
     static final AtomicLong checkCounter = new AtomicLong();
+
 
     static class IndexChecker implements Runnable {
 
@@ -195,30 +195,14 @@ public class DemoTester {
                     String queueName = "Queue-" + random.nextInt(queueCounter.size());
                     int index = random.nextInt(queueCounter.get(queueName).get()) - 10;
                     if (index < 0) index = 0;
-                    if (index >= 180) index = 0;
                     Collection<byte[]> msgs = queueStore.get(queueName, index, 10);
-                    if(msgs.size() == 0) {
-                        System.out.println("no msg!");
-                        System.exit(-1);
-                    }
                     for (byte[] msg : msgs) {
-                        int saved = index;
-                        String msgToCheck = new String(msg);
-                        String expectedMsg = String.valueOf(index++);
-                        if (!msgToCheck.endsWith(expectedMsg)) {
-                            synchronized (lock) {
-                                System.out.println(queueName + " offset begin:" + saved);
-                                System.out.println(queueName + " offset begin:" + saved);
-                                System.out.print("[");
-                                for (byte[] m : msgs) {
-                                    System.out.print(new String(m) + ",");
-                                }
-                                System.out.println("]");
-                                System.out.println(new String(msg));
-                                System.out.println(index - 1);
-                                System.out.println("Check error");
-                                System.out.println("-------------------");
-                            }
+                        if (!new String(msg).substring(0, 50).equals(messagePre.substring(0, 50))) {
+                            System.err.println("IndexChecker Check error ？ "
+                                    + " " + queueName + " "
+                                    + new String(msg)
+                                    + " : " + (messagePre + String.valueOf(index - 1)));
+                            System.out.println("以正确检验的次数：" + counter);
                             System.exit(-1);
                         }
                     }
@@ -267,27 +251,21 @@ public class DemoTester {
                         if (msgs != null && msgs.size() > 0) {
                             pullOffsets.get(queueName).getAndAdd(msgs.size());
                             for (byte[] msg : msgs) {
-                                String msgToConsume = new String(msg, msgPrefixLength, msg.length - msgPrefixLength);
-                                String expectedMsg = String.valueOf(index++);
-                                if (!msgToConsume.equals(expectedMsg)) {
-                                    System.out.println(queueName + "Check error, expected " + expectedMsg + ", actual " + msgToConsume);
-                                    for(byte[] m:msgs) {
-                                        System.out.println(new String(m));
-                                    }
+                                if (!new String(msg).substring(0, 50).equals(messagePre.substring(0, 50))) {
+                                    System.err.println("Consumer Check error ？ " + queueName);
                                     System.exit(-1);
-                                } else {
-                                    long c = consumerCount.getAndIncrement();
-                                    if (c % 10000000 == 0) {
-                                        System.out.println(c + " messages consumed. time " + (System.currentTimeMillis() - consumeStartTimestamp) + "ms");
-                                    }
                                 }
+                            }
+                            long c = consumerCount.getAndIncrement();
+                            if (c % 10000000 == 0) {
+                                System.out.println(c + " messages consumed. time " + (System.currentTimeMillis() - consumeStartTimestamp) + "ms");
                             }
 
                             counter.addAndGet(msgs.size());
                         }
                         if (msgs == null || msgs.size() < 10) {
                             if (pullOffsets.get(queueName).get() != offsets.get(queueName).get()) {
-                                System.out.printf("Queue Number Error");
+                                System.err.println("Consumer Queue Number Error " + queueName);
                                 System.exit(-1);
                             }
                             pullOffsets.remove(queueName);
@@ -297,8 +275,11 @@ public class DemoTester {
                     t.printStackTrace();
                     System.exit(-1);
                 }
+
+
             }
         }
     }
 }
+
 
