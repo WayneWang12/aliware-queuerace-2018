@@ -7,6 +7,7 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RDPQueue {
 
@@ -15,6 +16,7 @@ public class RDPQueue {
     long[] indexes = new long[100];
     byte currentIndex = 0;
     short queueSize = 0;
+    int queueId;
 
     void setIndex(long position) {
         if (currentIndex < 100) {
@@ -22,7 +24,10 @@ public class RDPQueue {
         }
     }
 
+    static AtomicInteger currentQueueId = new AtomicInteger();
+
     public RDPQueue(FileManager fileManager) {
+        this.queueId = currentQueueId.getAndIncrement();
         this.fileManager = fileManager;
         this.byteBuffer = fileManager.acquireQueueBuffer(this);
     }
@@ -95,7 +100,7 @@ public class RDPQueue {
                     }
                 }
             })
-            .maximumSize(49000) //49152
+            .maximumSize(46000) //49152
             .build();
 
     void fillResultFromBlockCache(ResultCache resultCache, int offset, int num)  {

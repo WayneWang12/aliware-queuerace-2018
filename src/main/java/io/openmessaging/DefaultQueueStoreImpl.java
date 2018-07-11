@@ -1,8 +1,6 @@
 package io.openmessaging;
 
 import java.util.Collection;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -47,9 +45,18 @@ public class DefaultQueueStoreImpl extends QueueStore {
                         e.printStackTrace();
                     }
                 }
+                for (int i = 0; i < 100000; i++) {
+                    RDPQueue rdpQueue = queueMap[i];
+                    System.out.print("[");
+                    for (long filePosition : rdpQueue.indexes) {
+                        System.out.print(filePosition / Constants.blockSize);
+                        System.out.print(", ");
+                    }
+                    System.out.println("]");
+                }
             }
         }
-        if(consumeCounter.get() <= Constants.indexCheckNumber) {
+        if (consumeCounter.get() <= Constants.indexCheckNumber) {
             consumeCounter.getAndIncrement();
             return queueMap[getIndex(queueName)].getMessages((int) offset, (int) num, false);
         } else {
